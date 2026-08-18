@@ -1,0 +1,120 @@
+<%- include('../partials/header', { titulo: titulo, activeNav: 'clientes' }) %>
+
+<div class="max-w-2xl mx-auto space-y-5">
+  <div class="flex items-center gap-2 text-sm text-slate-500">
+    <a href="/clientes" class="hover:text-indigo-700">Clientes</a>
+    <span>/</span>
+    <span class="text-slate-700"><%= esEdicion ? 'Editar' : 'Nuevo' %></span>
+  </div>
+
+  <h1 class="text-xl sm:text-2xl font-bold text-slate-900"><%= titulo %></h1>
+
+  <% if (errores.length) { %>
+    <div class="rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
+      <ul class="list-disc list-inside space-y-1">
+        <% errores.forEach(function (mensaje) { %>
+          <li><%= mensaje %></li>
+        <% }); %>
+      </ul>
+    </div>
+  <% } %>
+
+  <form
+    method="POST"
+    action="<%= esEdicion ? '/clientes/' + cliente.id : '/clientes' %>"
+    class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-6 space-y-4"
+  >
+    <div>
+      <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">
+        Nombre completo <span class="text-red-500">*</span>
+      </label>
+      <input
+        type="text"
+        id="nombre"
+        name="nombre"
+        value="<%= cliente.nombre || '' %>"
+        required
+        maxlength="150"
+        class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        placeholder="Nombre del cliente"
+      />
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label for="telefono" class="block text-sm font-medium text-slate-700 mb-1">Teléfono</label>
+        <input
+          type="tel"
+          id="telefono"
+          name="telefono"
+          value="<%= cliente.telefono || '' %>"
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          placeholder="300 000 0000"
+        />
+      </div>
+      <div>
+        <label for="email" class="block text-sm font-medium text-slate-700 mb-1">Correo electrónico</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          value="<%= cliente.email || '' %>"
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          placeholder="cliente@correo.com"
+        />
+      </div>
+    </div>
+
+    <div>
+      <label for="direccion" class="block text-sm font-medium text-slate-700 mb-1">Dirección</label>
+      <input
+        type="text"
+        id="direccion"
+        name="direccion"
+        value="<%= cliente.direccion || '' %>"
+        class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        placeholder="Dirección del cliente"
+      />
+    </div>
+
+    <div>
+      <label for="documento" class="block text-sm font-medium text-slate-700 mb-1">Documento / identificación</label>
+      <input
+        type="text"
+        id="documento"
+        name="documento"
+        value="<%= cliente.documento || '' %>"
+        class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        placeholder="Opcional"
+      />
+    </div>
+
+    <div>
+      <label for="observaciones" class="block text-sm font-medium text-slate-700 mb-1">Observaciones</label>
+      <textarea
+        id="observaciones"
+        name="observaciones"
+        rows="3"
+        class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        placeholder="Notas adicionales sobre el cliente"
+      ><%= cliente.observaciones || '' %></textarea>
+    </div>
+
+    <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+      <a
+        href="/clientes"
+        class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-3 sm:py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+      >
+        Cancelar
+      </a>
+      <button
+        type="submit"
+        class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 sm:py-2.5 text-sm font-medium text-white shadow hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
+      >
+        <%= esEdicion ? 'Guardar cambios' : 'Crear cliente' %>
+      </button>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

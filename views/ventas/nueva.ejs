@@ -1,0 +1,221 @@
+<%- include('../partials/header', { titulo: 'Nueva venta', activeNav: 'ventas' }) %>
+
+<div class="max-w-3xl mx-auto space-y-5">
+  <div class="flex items-center gap-2 text-sm text-slate-500">
+    <a href="/ventas" class="hover:text-indigo-700">Ventas</a>
+    <span>/</span>
+    <span class="text-slate-700">Nueva venta</span>
+  </div>
+
+  <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Nueva venta</h1>
+
+  <% if (errores.length) { %>
+    <div class="rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
+      <ul class="list-disc list-inside space-y-1">
+        <% errores.forEach(function (mensaje) { %>
+          <li><%= mensaje %></li>
+        <% }); %>
+      </ul>
+    </div>
+  <% } %>
+
+  <% if (clientes.length === 0 || productos.length === 0) { %>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 text-sm text-slate-600 space-y-3">
+      <p>Para registrar una venta necesitas al menos un cliente y un producto/servicio activos.</p>
+      <div class="flex flex-wrap gap-3">
+        <% if (clientes.length === 0) { %>
+          <a href="/clientes/nuevo" class="text-indigo-600 font-medium hover:underline">+ Crear un cliente</a>
+        <% } %>
+        <% if (productos.length === 0) { %>
+          <a href="/productos/nuevo" class="text-indigo-600 font-medium hover:underline">+ Crear un producto/servicio</a>
+        <% } %>
+      </div>
+    </div>
+  <% } else { %>
+    <form method="POST" action="/ventas" class="space-y-4">
+      <!-- Cliente -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-6">
+        <label for="cliente_id" class="block text-sm font-medium text-slate-700 mb-1">
+          Cliente <span class="text-red-500">*</span>
+        </label>
+        <select
+          id="cliente_id"
+          name="cliente_id"
+          required
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="">Selecciona un cliente...</option>
+          <% clientes.forEach(function (cliente) { %>
+            <option value="<%= cliente.id %>" <%= String(valores.cliente_id) === String(cliente.id) ? 'selected' : '' %>>
+              <%= cliente.nombre %><% if (cliente.telefono) { %> · <%= cliente.telefono %><% } %>
+            </option>
+          <% }); %>
+        </select>
+      </div>
+
+      <!-- Productos/servicios -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-6 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-sm font-semibold text-slate-900">Productos / servicios</h2>
+          <button
+            type="button"
+            id="btn-agregar-fila"
+            class="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+          >
+            + Agregar producto
+          </button>
+        </div>
+
+        <div id="filas-detalle"></div>
+
+        <template id="plantilla-fila">
+          <div class="fila-detalle grid grid-cols-12 gap-2 items-end border-b border-slate-100 pb-3 mb-3 last:border-0 last:mb-0 last:pb-0">
+            <div class="col-span-12 sm:col-span-6">
+              <label class="block text-xs font-medium text-slate-500 mb-1 sm:hidden">Producto/Servicio</label>
+              <select
+                name="producto_id[]"
+                required
+                class="fila-producto w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              >
+                <option value="">Selecciona...</option>
+                <% productos.forEach(function (producto) { %>
+                  <option value="<%= producto.id %>" data-precio="<%= producto.precio %>">
+                    <%= producto.nombre %> — <%= formatMoney(producto.precio) %>
+                  </option>
+                <% }); %>
+              </select>
+            </div>
+            <div class="col-span-5 sm:col-span-2">
+              <label class="block text-xs font-medium text-slate-500 mb-1 sm:hidden">Cantidad</label>
+              <input
+                type="number"
+                name="cantidad[]"
+                min="0.01"
+                step="0.01"
+                value="1"
+                required
+                class="fila-cantidad w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            <div class="col-span-5 sm:col-span-3">
+              <label class="block text-xs font-medium text-slate-500 mb-1 sm:hidden">Subtotal</label>
+              <p class="fila-subtotal w-full rounded-lg bg-slate-50 border border-slate-200 px-3 py-2.5 text-sm text-slate-700 text-right">
+                $ 0
+              </p>
+            </div>
+            <div class="col-span-2 sm:col-span-1 flex justify-end">
+              <button
+                type="button"
+                class="btn-eliminar-fila text-red-500 hover:text-red-700 p-2"
+                aria-label="Eliminar producto"
+              >
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Resumen y forma de pago -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
+        <h2 class="text-sm font-semibold text-slate-900">Pago</h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label for="descuento" class="block text-sm font-medium text-slate-700 mb-1">Descuento</label>
+            <input
+              type="number"
+              id="descuento"
+              name="descuento"
+              min="0"
+              step="0.01"
+              value="<%= valores.descuento || '0' %>"
+              class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+          <div>
+            <label for="pago_inicial" class="block text-sm font-medium text-slate-700 mb-1">Pago inicial</label>
+            <input
+              type="number"
+              id="pago_inicial"
+              name="pago_inicial"
+              min="0"
+              step="0.01"
+              value="<%= valores.pago_inicial || '0' %>"
+              class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            <div class="flex gap-3 mt-1.5">
+              <button type="button" id="btn-sin-pago" class="text-xs font-medium text-slate-500 hover:text-slate-700">
+                Sin pago inicial
+              </button>
+              <button type="button" id="btn-pago-completo" class="text-xs font-medium text-indigo-600 hover:text-indigo-700">
+                Pagar todo
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="campo-metodo-pago" class="hidden">
+          <label for="metodo_pago" class="block text-sm font-medium text-slate-700 mb-1">Método de pago</label>
+          <select
+            id="metodo_pago"
+            name="metodo_pago"
+            class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="EFECTIVO" <%= valores.metodo_pago === 'EFECTIVO' ? 'selected' : '' %>>Efectivo</option>
+            <option value="TRANSFERENCIA" <%= valores.metodo_pago === 'TRANSFERENCIA' ? 'selected' : '' %>>Transferencia</option>
+            <option value="OTRO" <%= valores.metodo_pago === 'OTRO' ? 'selected' : '' %>>Otro</option>
+          </select>
+        </div>
+
+        <div class="border-t border-slate-100 pt-4 space-y-1.5 text-sm">
+          <div class="flex justify-between text-slate-600">
+            <span>Subtotal</span>
+            <span id="resumen-subtotal">$ 0</span>
+          </div>
+          <div class="flex justify-between text-base font-semibold text-slate-900">
+            <span>Total</span>
+            <span id="resumen-total">$ 0</span>
+          </div>
+          <div class="flex justify-between text-red-600 font-medium">
+            <span>Saldo pendiente</span>
+            <span id="resumen-saldo">$ 0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Observaciones -->
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-6">
+        <label for="observaciones" class="block text-sm font-medium text-slate-700 mb-1">Observaciones</label>
+        <textarea
+          id="observaciones"
+          name="observaciones"
+          rows="2"
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          placeholder="Notas adicionales (opcional)"
+        ><%= valores.observaciones || '' %></textarea>
+      </div>
+
+      <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+        <a
+          href="/ventas"
+          class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-3 sm:py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          Cancelar
+        </a>
+        <button
+          type="submit"
+          class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 sm:py-2.5 text-sm font-medium text-white shadow hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
+        >
+          Registrar venta
+        </button>
+      </div>
+    </form>
+  <% } %>
+</div>
+
+<script src="/js/venta-form.js"></script>
+
+<%- include('../partials/footer') %>

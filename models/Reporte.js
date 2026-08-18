@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const Venta = require('./Venta');
 
 async function reporteVentas({ fechaInicio, fechaFin, clienteId = '', productoId = '', estado = '' }) {
   const condiciones = ['v.fecha >= ?', 'v.fecha <= ?'];
@@ -23,24 +24,47 @@ async function reporteVentas({ fechaInicio, fechaFin, clienteId = '', productoId
 
   const where = `WHERE ${condiciones.join(' AND ')}`;
 
-  const [[fila]] = await pool.query(
-    `SELECT
-        COUNT(*) AS cantidad_ventas,
-        COALESCE(SUM(total), 0) AS total_vendido,
-        COALESCE(SUM(CASE WHEN estado = 'PAGADA' THEN total ELSE 0 END), 0) AS total_pagado,
-        COALESCE(SUM(CASE WHEN tipo_pago IN ('CREDITO', 'PARCIAL') THEN total ELSE 0 END), 0) AS total_credito,
-        COALESCE(SUM(CASE WHEN estado IN ('PENDIENTE', 'PARCIAL') THEN total ELSE 0 END), 0) AS total_pendiente
+  const [ventasFiltradas] = await pool.query(
+    `SELECT v.id, v.cliente_id, v.total, v.estado, v.tipo_pago
      FROM ventas v
      ${where}`,
     params
   );
 
+  const cantidadVentas = ventasFiltradas.length;
+  const totalVendido = ventasFiltradas.reduce((acumulado, v) => acumulado + Number(v.total), 0);
+  const totalPagado = ventasFiltradas
+    .filter((v) => v.estado === 'PAGADA')
+    .reduce((acumulado, v) => acumulado + Number(v.total), 0);
+
+  const ventasCredito = ventasFiltradas.filter((v) => v.tipo_pago === 'CREDITO' || v.tipo_pago === 'PARCIAL');
+  const totalCredito = ventasCredito.reduce((acumulado, v) => acumulado + Number(v.total), 0);
+
+  // El total pendiente real de cada venta a crédito/parcial depende de cómo
+  // se distribuyeron los abonos del cliente (FIFO, ver Venta.js) y no de si
+  // esa venta en particular quedó marcada como PARCIAL: sumar su total
+  // completo ignoraría lo que el cliente ya abonó. Se reutiliza la misma
+  // distribución que determina el estado de cada venta para conocer el
+  // monto que sigue pendiente de cada una.
+  const clientesConCredito = [...new Set(ventasCredito.map((v) => v.cliente_id))];
+  const saldosPorVenta = new Map();
+
+  for (const idCliente of clientesConCredito) {
+    const saldos = await Venta.obtenerSaldosCliente(idCliente);
+    saldos.forEach((saldo) => saldosPorVenta.set(saldo.id, saldo.montoPendiente));
+  }
+
+  const totalPendiente = ventasCredito.reduce(
+    (acumulado, v) => acumulado + (saldosPorVenta.get(v.id) || 0),
+    0
+  );
+
   return {
-    cantidadVentas: Number(fila.cantidad_ventas),
-    totalVendido: Number(fila.total_vendido),
-    totalPagado: Number(fila.total_pagado),
-    totalCredito: Number(fila.total_credito),
-    totalPendiente: Number(fila.total_pendiente)
+    cantidadVentas,
+    totalVendido,
+    totalPagado,
+    totalCredito,
+    totalPendiente
   };
 }
 

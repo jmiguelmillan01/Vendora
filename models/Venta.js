@@ -114,20 +114,51 @@ async function create({
 }
 
 // Los abonos se registran a nivel de cliente, no de una venta específica (el
-// esquema no tiene abonos.venta_id), así que el estado de cada venta a crédito
-// debe recalcularse cada vez que cambia el total abonado. Se distribuye el
-// total abonado del cliente entre sus ventas a crédito de la más antigua a la
-// más reciente (FIFO): la primera deuda en generarse es la primera en saldarse.
-// tipo_pago nunca cambia aquí (es el registro histórico de cómo se transó la
-// venta); solo estado se actualiza, como estado de pago vigente.
-async function reconciliarEstadosCliente(connection, clienteId) {
-  const [ventasCredito] = await connection.query(
+// esquema no tiene abonos.venta_id), así que el estado -y el monto que queda
+// pendiente- de cada venta a crédito se recalculan distribuyendo el total
+// abonado del cliente entre sus ventas a crédito de la más antigua a la más
+// reciente (FIFO): la primera deuda en generarse es la primera en saldarse.
+// Esta función es pura (sin acceso a BD) para poder reutilizar exactamente la
+// misma distribución tanto al persistir el estado como al calcular reportes.
+function calcularAsignacionAbonos(ventasOrdenadas, totalAbonado) {
+  let restante = Number(totalAbonado);
+
+  return ventasOrdenadas.map((venta) => {
+    const total = Number(venta.total);
+    let estado;
+    let montoPendiente;
+
+    if (restante >= total) {
+      estado = 'PAGADA';
+      montoPendiente = 0;
+      restante -= total;
+    } else if (restante > 0) {
+      estado = 'PARCIAL';
+      montoPendiente = total - restante;
+      restante = 0;
+    } else {
+      estado = 'PENDIENTE';
+      montoPendiente = total;
+    }
+
+    return { id: venta.id, total, estado, montoPendiente };
+  });
+}
+
+async function obtenerVentasCreditoCliente(ejecutor, clienteId) {
+  const [rows] = await ejecutor.query(
     `SELECT id, total FROM ventas
      WHERE cliente_id = ? AND tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'
      ORDER BY fecha ASC, id ASC`,
     [clienteId]
   );
+  return rows;
+}
 
+// tipo_pago nunca cambia aquí (es el registro histórico de cómo se transó la
+// venta); solo estado se actualiza, como estado de pago vigente.
+async function reconciliarEstadosCliente(connection, clienteId) {
+  const ventasCredito = await obtenerVentasCreditoCliente(connection, clienteId);
   if (ventasCredito.length === 0) return;
 
   const [[{ totalAbonado }]] = await connection.query(
@@ -135,24 +166,27 @@ async function reconciliarEstadosCliente(connection, clienteId) {
     [clienteId]
   );
 
-  let restante = Number(totalAbonado);
+  const asignaciones = calcularAsignacionAbonos(ventasCredito, totalAbonado);
 
-  for (const venta of ventasCredito) {
-    const total = Number(venta.total);
-    let nuevoEstado;
-
-    if (restante >= total) {
-      nuevoEstado = 'PAGADA';
-      restante -= total;
-    } else if (restante > 0) {
-      nuevoEstado = 'PARCIAL';
-      restante = 0;
-    } else {
-      nuevoEstado = 'PENDIENTE';
-    }
-
-    await connection.query('UPDATE ventas SET estado = ? WHERE id = ?', [nuevoEstado, venta.id]);
+  for (const asignacion of asignaciones) {
+    await connection.query('UPDATE ventas SET estado = ? WHERE id = ?', [asignacion.estado, asignacion.id]);
   }
+}
+
+// Igual que reconciliarEstadosCliente, pero de solo lectura: devuelve además
+// el monto que realmente sigue pendiente de cada venta (no solo su estado),
+// para reportes que necesitan sumar lo pendiente real y no el total bruto de
+// las ventas PARCIAL/PENDIENTE.
+async function obtenerSaldosCliente(clienteId) {
+  const ventasCredito = await obtenerVentasCreditoCliente(pool, clienteId);
+  if (ventasCredito.length === 0) return [];
+
+  const [[{ totalAbonado }]] = await pool.query(
+    'SELECT COALESCE(SUM(valor), 0) AS totalAbonado FROM abonos WHERE cliente_id = ?',
+    [clienteId]
+  );
+
+  return calcularAsignacionAbonos(ventasCredito, totalAbonado);
 }
 
 async function findAll({
@@ -243,5 +277,6 @@ module.exports = {
   findAll,
   findById,
   findDetalles,
-  reconciliarEstadosCliente
+  reconciliarEstadosCliente,
+  obtenerSaldosCliente
 };

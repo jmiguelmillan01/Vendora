@@ -48,6 +48,7 @@
           id="telefono"
           name="telefono"
           value="<%= cliente.telefono || '' %>"
+          maxlength="30"
           class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           placeholder="300 000 0000"
         />
@@ -59,6 +60,7 @@
           id="email"
           name="email"
           value="<%= cliente.email || '' %>"
+          maxlength="150"
           class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
           placeholder="cliente@correo.com"
         />
@@ -72,6 +74,7 @@
         id="direccion"
         name="direccion"
         value="<%= cliente.direccion || '' %>"
+        maxlength="255"
         class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
         placeholder="Dirección del cliente"
       />
@@ -82,6 +85,7 @@
       <input
         type="text"
         id="documento"
+        maxlength="50"
         name="documento"
         value="<%= cliente.documento || '' %>"
         class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"

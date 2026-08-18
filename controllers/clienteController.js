@@ -24,8 +24,27 @@ function validarCliente(body) {
   }
 
   const email = (body.email || '').trim();
-  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errores.push('El correo electrónico no es válido.');
+  if (email) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errores.push('El correo electrónico no es válido.');
+    } else if (email.length > 150) {
+      errores.push('El correo electrónico no puede superar los 150 caracteres.');
+    }
+  }
+
+  const telefono = (body.telefono || '').trim();
+  if (telefono.length > 30) {
+    errores.push('El teléfono no puede superar los 30 caracteres.');
+  }
+
+  const direccion = (body.direccion || '').trim();
+  if (direccion.length > 255) {
+    errores.push('La dirección no puede superar los 255 caracteres.');
+  }
+
+  const documento = (body.documento || '').trim();
+  if (documento.length > 50) {
+    errores.push('El documento no puede superar los 50 caracteres.');
   }
 
   return errores;

@@ -11,6 +11,7 @@ const productoRoutes = require('./routes/productoRoutes');
 const ventaRoutes = require('./routes/ventaRoutes');
 const abonoRoutes = require('./routes/abonoRoutes');
 const reporteRoutes = require('./routes/reporteRoutes');
+const configuracionRoutes = require('./routes/configuracionRoutes');
 const dashboardController = require('./controllers/dashboardController');
 const { formatMoney, formatFecha } = require('./utils/format');
 const { toSafeJsonScript } = require('./utils/safeJson');
@@ -22,15 +23,34 @@ app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  next();
+});
+
+const unDiaEnMs = 1000 * 60 * 60 * 24;
+// Sin maxAge: el propio CSS/JS de la app cambia seguido durante el
+// desarrollo. Express igual envía ETag/Last-Modified, así que el navegador
+// valida con el servidor en cada carga y solo re-descarga si cambió de
+// verdad (una caché larga aquí causaba que los navegadores ignoraran
+// archivos actualizados hasta por 24 horas).
 app.use(express.static(path.join(__dirname, 'public')));
-app.use('/vendor/chartjs', express.static(path.join(__dirname, 'node_modules/chart.js/dist')));
+// Los archivos de Chart.js vienen de node_modules y no cambian salvo que se
+// actualice la dependencia, así que sí es seguro cachearlos por más tiempo.
+app.use('/vendor/chartjs', express.static(path.join(__dirname, 'node_modules/chart.js/dist'), { maxAge: unDiaEnMs * 30 }));
 
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
   cookie: {
-    maxAge: 1000 * 60 * 60 * 8
+    maxAge: 1000 * 60 * 60 * 8,
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
   }
 }));
 
@@ -53,6 +73,7 @@ app.use('/productos', requireAuth, productoRoutes);
 app.use('/ventas', requireAuth, ventaRoutes);
 app.use('/abonos', requireAuth, abonoRoutes);
 app.use('/reportes', requireAuth, reporteRoutes);
+app.use('/configuracion', requireAuth, configuracionRoutes);
 
 app.use((req, res) => {
   res.status(404).render('404', { titulo: 'Página no encontrada' });
@@ -64,6 +85,7 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Servidor corriendo en http://localhost:${PORT}`);
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Servidor corriendo en el puerto ${PORT}`);
 });

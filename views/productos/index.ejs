@@ -116,10 +116,10 @@
           <% if (producto.descripcion) { %>
             <p class="text-sm text-slate-500"><%= producto.descripcion %></p>
           <% } %>
-          <div class="flex items-center justify-end gap-3 pt-2 border-t border-slate-100">
-            <a href="/productos/<%= producto.id %>/editar" class="text-xs font-medium text-slate-500">Editar</a>
+          <div class="flex items-center justify-end gap-1 -my-2 pt-2 border-t border-slate-100">
+            <a href="/productos/<%= producto.id %>/editar" class="inline-block px-2 py-2 text-xs font-medium text-slate-500">Editar</a>
             <form method="POST" action="/productos/<%= producto.id %>/toggle">
-              <button type="submit" class="text-xs font-medium <%= producto.activo ? 'text-red-600' : 'text-green-600' %>">
+              <button type="submit" class="px-2 py-2 text-xs font-medium <%= producto.activo ? 'text-red-600' : 'text-green-600' %>">
                 <%= producto.activo ? 'Desactivar' : 'Activar' %>
               </button>
             </form>

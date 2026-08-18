@@ -1,0 +1,81 @@
+<%- include('../partials/header', { titulo: 'Configuración', activeNav: 'configuracion' }) %>
+
+<div class="max-w-lg mx-auto space-y-5">
+  <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Configuración</h1>
+
+  <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-6">
+    <p class="text-xs font-medium text-slate-500 mb-1">Sesión iniciada como</p>
+    <p class="text-sm font-medium text-slate-900"><%= usuario.nombre %></p>
+    <p class="text-sm text-slate-500"><%= usuario.email %></p>
+  </div>
+
+  <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
+    <h2 class="text-sm font-semibold text-slate-900">Cambiar contraseña</h2>
+
+    <% if (errores.length) { %>
+      <div class="rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
+        <ul class="list-disc list-inside space-y-1">
+          <% errores.forEach(function (mensaje) { %>
+            <li><%= mensaje %></li>
+          <% }); %>
+        </ul>
+      </div>
+    <% } %>
+
+    <form method="POST" action="/configuracion/password" class="space-y-4">
+      <div>
+        <label for="password_actual" class="block text-sm font-medium text-slate-700 mb-1">
+          Contraseña actual <span class="text-red-500">*</span>
+        </label>
+        <input
+          type="password"
+          id="password_actual"
+          name="password_actual"
+          required
+          autocomplete="current-password"
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        />
+      </div>
+
+      <div>
+        <label for="password_nueva" class="block text-sm font-medium text-slate-700 mb-1">
+          Nueva contraseña <span class="text-red-500">*</span>
+        </label>
+        <input
+          type="password"
+          id="password_nueva"
+          name="password_nueva"
+          required
+          minlength="6"
+          autocomplete="new-password"
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        />
+        <p class="mt-1 text-xs text-slate-400">Mínimo 6 caracteres.</p>
+      </div>
+
+      <div>
+        <label for="password_confirmacion" class="block text-sm font-medium text-slate-700 mb-1">
+          Confirmar nueva contraseña <span class="text-red-500">*</span>
+        </label>
+        <input
+          type="password"
+          id="password_confirmacion"
+          name="password_confirmacion"
+          required
+          minlength="6"
+          autocomplete="new-password"
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        />
+      </div>
+
+      <button
+        type="submit"
+        class="w-full sm:w-auto inline-flex items-center justify-center rounded-lg bg-indigo-600 px-5 py-3 text-white font-medium shadow hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
+      >
+        Guardar cambios
+      </button>
+    </form>
+  </div>
+</div>
+
+<%- include('../partials/footer') %>

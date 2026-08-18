@@ -136,6 +136,41 @@ async function getResumenFinanciero(clienteId) {
   };
 }
 
+async function getResumenGlobal() {
+  const [[fila]] = await pool.query(
+    `SELECT
+        COALESCE(SUM(GREATEST(saldo, 0)), 0) AS total_pendiente,
+        COUNT(CASE WHEN saldo > 0 THEN 1 END) AS clientes_con_deuda,
+        COUNT(*) AS total_clientes
+     FROM (
+       SELECT ${SALDO_EXPR}
+       FROM clientes c
+       ${SALDO_JOIN}
+       WHERE c.activo = 1
+     ) saldos`
+  );
+
+  return {
+    totalPendiente: Number(fila.total_pendiente),
+    clientesConDeuda: Number(fila.clientes_con_deuda),
+    totalClientes: Number(fila.total_clientes)
+  };
+}
+
+async function findMayorDeuda(limit = 5) {
+  const [rows] = await pool.query(
+    `SELECT c.id, c.nombre, ${SALDO_EXPR}
+     FROM clientes c
+     ${SALDO_JOIN}
+     WHERE c.activo = 1
+     HAVING saldo > 0
+     ORDER BY saldo DESC
+     LIMIT ?`,
+    [Number(limit)]
+  );
+  return rows;
+}
+
 async function getHistorial(clienteId, { fechaInicio = '', fechaFin = '' } = {}) {
   const condicionesVenta = ['cliente_id = ?', "estado != 'ANULADA'"];
   const condicionesAbono = ['cliente_id = ?'];
@@ -180,5 +215,7 @@ module.exports = {
   update,
   setActivo,
   getResumenFinanciero,
+  getResumenGlobal,
+  findMayorDeuda,
   getHistorial
 };

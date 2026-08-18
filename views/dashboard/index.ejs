@@ -1,0 +1,187 @@
+<%- include('../partials/header', { titulo: 'Dashboard', activeNav: 'dashboard' }) %>
+
+<%
+  const etiquetasTipoPago = { CONTADO: 'Contado', CREDITO: 'Crédito', PARCIAL: 'Parcial' };
+%>
+
+<div class="max-w-6xl mx-auto space-y-6">
+  <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Dashboard</h1>
+
+  <!-- Indicadores -->
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <%- include('../partials/stat-tile', { label: 'Ventas del día', valor: formatMoney(indicadores.ventasHoy) }) %>
+    <%- include('../partials/stat-tile', { label: 'Ventas del mes', valor: formatMoney(indicadores.ventasMes) }) %>
+    <%- include('../partials/stat-tile', { label: 'Ventas a crédito (mes)', valor: formatMoney(indicadores.ventasCreditoMes) }) %>
+    <%- include('../partials/stat-tile', { label: 'Abonos recibidos (mes)', valor: formatMoney(indicadores.abonosMes), colorClass: 'text-green-700' }) %>
+    <%- include('../partials/stat-tile', { label: 'Total pendiente por cobrar', valor: formatMoney(indicadores.totalPendiente), colorClass: indicadores.totalPendiente > 0 ? 'text-red-700' : 'text-green-700' }) %>
+    <%- include('../partials/stat-tile', { label: 'Clientes', valor: indicadores.totalClientes }) %>
+    <%- include('../partials/stat-tile', { label: 'Clientes con deuda', valor: indicadores.clientesConDeuda, colorClass: indicadores.clientesConDeuda > 0 ? 'text-red-700' : 'text-slate-900' }) %>
+  </div>
+
+  <!-- Información adicional -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-slate-900">Ventas recientes</h2>
+        <a href="/ventas" class="text-xs font-medium text-indigo-600 hover:text-indigo-700">Ver todas</a>
+      </div>
+      <% if (ventasRecientes.length === 0) { %>
+        <p class="text-sm text-slate-500">Aún no hay ventas registradas.</p>
+      <% } else { %>
+        <ul class="space-y-3">
+          <% ventasRecientes.forEach(function (venta) { %>
+            <li>
+              <a href="/ventas/<%= venta.id %>" class="flex items-center justify-between gap-2 hover:bg-slate-50 -mx-2 px-2 py-1 rounded-lg">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-slate-900 truncate"><%= venta.cliente_nombre %></p>
+                  <p class="text-xs text-slate-500"><%= formatFecha(venta.fecha) %> · <%= etiquetasTipoPago[venta.tipo_pago] || venta.tipo_pago %></p>
+                </div>
+                <span class="shrink-0 text-sm font-medium text-slate-900"><%= formatMoney(venta.total) %></span>
+              </a>
+            </li>
+          <% }); %>
+        </ul>
+      <% } %>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-slate-900">Abonos recientes</h2>
+        <a href="/abonos" class="text-xs font-medium text-indigo-600 hover:text-indigo-700">Ver todos</a>
+      </div>
+      <% if (abonosRecientes.length === 0) { %>
+        <p class="text-sm text-slate-500">Aún no hay abonos registrados.</p>
+      <% } else { %>
+        <ul class="space-y-3">
+          <% abonosRecientes.forEach(function (abono) { %>
+            <li>
+              <a href="/clientes/<%= abono.cliente_id %>" class="flex items-center justify-between gap-2 hover:bg-slate-50 -mx-2 px-2 py-1 rounded-lg">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-slate-900 truncate"><%= abono.cliente_nombre %></p>
+                  <p class="text-xs text-slate-500"><%= formatFecha(abono.fecha) %></p>
+                </div>
+                <span class="shrink-0 text-sm font-medium text-green-700"><%= formatMoney(abono.valor) %></span>
+              </a>
+            </li>
+          <% }); %>
+        </ul>
+      <% } %>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-sm font-semibold text-slate-900">Clientes con mayor deuda</h2>
+        <a href="/clientes" class="text-xs font-medium text-indigo-600 hover:text-indigo-700">Ver todos</a>
+      </div>
+      <% if (clientesMayorDeuda.length === 0) { %>
+        <p class="text-sm text-slate-500">Ningún cliente tiene deuda pendiente.</p>
+      <% } else { %>
+        <ul class="space-y-3">
+          <% clientesMayorDeuda.forEach(function (cliente) { %>
+            <li>
+              <a href="/clientes/<%= cliente.id %>" class="flex items-center justify-between gap-2 hover:bg-slate-50 -mx-2 px-2 py-1 rounded-lg">
+                <p class="text-sm font-medium text-slate-900 truncate"><%= cliente.nombre %></p>
+                <span class="shrink-0 text-sm font-medium text-red-700"><%= formatMoney(cliente.saldo) %></span>
+              </a>
+            </li>
+          <% }); %>
+        </ul>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- Filtro de periodo para gráficos -->
+  <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4">
+    <form method="GET" action="/" class="flex flex-wrap items-end gap-3">
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Desde</label>
+        <input
+          type="date"
+          name="fechaInicio"
+          value="<%= filtros.fechaInicio %>"
+          class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Hasta</label>
+        <input
+          type="date"
+          name="fechaFin"
+          value="<%= filtros.fechaFin %>"
+          class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        />
+      </div>
+      <button
+        type="submit"
+        class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 transition-colors"
+      >
+        Aplicar al periodo de los gráficos
+      </button>
+      <p class="w-full text-xs text-slate-400">Los indicadores de arriba siempre muestran hoy / este mes / el total actual. Este rango solo afecta a los gráficos de abajo.</p>
+    </form>
+  </div>
+
+  <!-- Gráficos -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5">
+      <h2 class="text-sm font-semibold text-slate-900 mb-3">Ventas por día</h2>
+      <% if (graficos.ventasPorDia.length === 0) { %>
+        <p class="text-sm text-slate-500 h-56 flex items-center justify-center">Sin ventas en el periodo seleccionado.</p>
+      <% } else { %>
+        <div class="h-56 sm:h-64">
+          <canvas id="grafico-ventas-dia"></canvas>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5">
+      <h2 class="text-sm font-semibold text-slate-900 mb-3">Ventas por mes (últimos 6 meses)</h2>
+      <% if (graficos.ventasPorMes.length === 0) { %>
+        <p class="text-sm text-slate-500 h-56 flex items-center justify-center">Sin ventas registradas.</p>
+      <% } else { %>
+        <div class="h-56 sm:h-64">
+          <canvas id="grafico-ventas-mes"></canvas>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5">
+      <h2 class="text-sm font-semibold text-slate-900 mb-3">Créditos/fiados por período</h2>
+      <% if (graficos.creditosPorPeriodo.length === 0) { %>
+        <p class="text-sm text-slate-500 h-56 flex items-center justify-center">Sin ventas a crédito en el periodo seleccionado.</p>
+      <% } else { %>
+        <div class="h-56 sm:h-64">
+          <canvas id="grafico-creditos-periodo"></canvas>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5">
+      <h2 class="text-sm font-semibold text-slate-900 mb-3">Abonos por período</h2>
+      <% if (graficos.abonosPorPeriodo.length === 0) { %>
+        <p class="text-sm text-slate-500 h-56 flex items-center justify-center">Sin abonos en el periodo seleccionado.</p>
+      <% } else { %>
+        <div class="h-56 sm:h-64">
+          <canvas id="grafico-abonos-periodo"></canvas>
+        </div>
+      <% } %>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-5 lg:col-span-2">
+      <h2 class="text-sm font-semibold text-slate-900 mb-3">Productos/servicios más vendidos</h2>
+      <% if (graficos.productosMasVendidos.length === 0) { %>
+        <p class="text-sm text-slate-500 h-56 flex items-center justify-center">Sin ventas en el periodo seleccionado.</p>
+      <% } else { %>
+        <div class="h-64 sm:h-72">
+          <canvas id="grafico-productos-vendidos"></canvas>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<script id="dashboard-data" type="application/json"><%- toSafeJsonScript(graficos) %></script>
+<script src="/vendor/chartjs/chart.umd.min.js"></script>
+<script src="/js/dashboard-charts.js"></script>
+
+<%- include('../partials/footer') %>

@@ -10,7 +10,9 @@ const clienteRoutes = require('./routes/clienteRoutes');
 const productoRoutes = require('./routes/productoRoutes');
 const ventaRoutes = require('./routes/ventaRoutes');
 const abonoRoutes = require('./routes/abonoRoutes');
+const dashboardController = require('./controllers/dashboardController');
 const { formatMoney, formatFecha } = require('./utils/format');
+const { toSafeJsonScript } = require('./utils/safeJson');
 
 const app = express();
 
@@ -20,6 +22,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/vendor/chartjs', express.static(path.join(__dirname, 'node_modules/chart.js/dist')));
 
 app.use(session({
   secret: process.env.SESSION_SECRET,
@@ -35,15 +38,14 @@ app.use((req, res, next) => {
   res.locals.flash = req.session.flash || null;
   res.locals.formatMoney = formatMoney;
   res.locals.formatFecha = formatFecha;
+  res.locals.toSafeJsonScript = toSafeJsonScript;
   delete req.session.flash;
   next();
 });
 
 app.use('/', authRoutes);
 
-app.get('/', requireAuth, (req, res) => {
-  res.render('index', { titulo: 'Inicio', activeNav: 'inicio' });
-});
+app.get('/', requireAuth, dashboardController.index);
 
 app.use('/clientes', requireAuth, clienteRoutes);
 app.use('/productos', requireAuth, productoRoutes);

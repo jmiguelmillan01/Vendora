@@ -68,6 +68,36 @@ async function findActivos() {
   return rows;
 }
 
+async function findMasVendidos({ fechaInicio = '', fechaFin = '', limit = 5 } = {}) {
+  const condiciones = ["v.estado != 'ANULADA'"];
+  const params = [];
+
+  if (fechaInicio) {
+    condiciones.push('v.fecha >= ?');
+    params.push(fechaInicio);
+  }
+
+  if (fechaFin) {
+    condiciones.push('v.fecha <= ?');
+    params.push(`${fechaFin} 23:59:59`);
+  }
+
+  const [rows] = await pool.query(
+    `SELECT p.id, p.nombre, p.tipo,
+        SUM(d.cantidad) AS cantidad_vendida,
+        SUM(d.subtotal) AS total_generado
+     FROM detalle_venta d
+     JOIN ventas v ON v.id = d.venta_id
+     JOIN productos p ON p.id = d.producto_id
+     WHERE ${condiciones.join(' AND ')}
+     GROUP BY p.id, p.nombre, p.tipo
+     ORDER BY cantidad_vendida DESC
+     LIMIT ?`,
+    [...params, Number(limit)]
+  );
+  return rows;
+}
+
 async function create(datos) {
   const { nombre, descripcion, tipo, precio } = datos;
   const [resultado] = await pool.query(
@@ -96,6 +126,7 @@ module.exports = {
   findAll,
   findById,
   findActivos,
+  findMasVendidos,
   create,
   update,
   setActivo

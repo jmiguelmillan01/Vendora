@@ -171,6 +171,24 @@ async function findMayorDeuda(limit = 5) {
   return rows;
 }
 
+async function findAntiguedadDeuda(limit = 10) {
+  const [rows] = await pool.query(
+    `SELECT c.id, c.nombre, ${SALDO_EXPR},
+        DATEDIFF(CURDATE(), (
+          SELECT MIN(fecha) FROM ventas
+          WHERE cliente_id = c.id AND tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'
+        )) AS dias_antiguedad
+     FROM clientes c
+     ${SALDO_JOIN}
+     WHERE c.activo = 1
+     HAVING saldo > 0
+     ORDER BY dias_antiguedad DESC
+     LIMIT ?`,
+    [Number(limit)]
+  );
+  return rows;
+}
+
 async function getHistorial(clienteId, { fechaInicio = '', fechaFin = '' } = {}) {
   const condicionesVenta = ['cliente_id = ?', "estado != 'ANULADA'"];
   const condicionesAbono = ['cliente_id = ?'];
@@ -217,5 +235,6 @@ module.exports = {
   getResumenFinanciero,
   getResumenGlobal,
   findMayorDeuda,
+  findAntiguedadDeuda,
   getHistorial
 };

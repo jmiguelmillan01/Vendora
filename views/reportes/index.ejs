@@ -1,0 +1,318 @@
+<%- include('../partials/header', { titulo: 'Reportes', activeNav: 'reportes' }) %>
+
+<%
+  function enlace(cambios) {
+    const params = new URLSearchParams(queryActual);
+    Object.keys(cambios).forEach(function (llave) {
+      if (cambios[llave] === null) {
+        params.delete(llave);
+      } else {
+        params.set(llave, cambios[llave]);
+      }
+    });
+    return '?' + params.toString();
+  }
+
+  const etiquetasEstado = { PAGADA: 'Pagada', PENDIENTE: 'Pendiente', PARCIAL: 'Parcial', ANULADA: 'Anulada' };
+  const etiquetasMetodoPago = { EFECTIVO: 'Efectivo', TRANSFERENCIA: 'Transferencia', OTRO: 'Otro' };
+  const etiquetasTipoPago = { CONTADO: 'Contado', CREDITO: 'Crédito', PARCIAL: 'Parcial' };
+%>
+
+<div class="max-w-6xl mx-auto space-y-5">
+  <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Reportes</h1>
+
+  <!-- Pestañas -->
+  <div class="flex flex-wrap gap-2 border-b border-slate-200 pb-px">
+    <a href="<%= enlace({ tipo: 'ventas' }) %>" class="px-3 py-2 text-sm font-medium border-b-2 -mb-px <%= tipo === 'ventas' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700' %>">Ventas</a>
+    <a href="<%= enlace({ tipo: 'abonos' }) %>" class="px-3 py-2 text-sm font-medium border-b-2 -mb-px <%= tipo === 'abonos' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700' %>">Abonos</a>
+    <a href="<%= enlace({ tipo: 'clientes' }) %>" class="px-3 py-2 text-sm font-medium border-b-2 -mb-px <%= tipo === 'clientes' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700' %>">Clientes</a>
+    <a href="<%= enlace({ tipo: 'productos' }) %>" class="px-3 py-2 text-sm font-medium border-b-2 -mb-px <%= tipo === 'productos' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700' %>">Productos</a>
+  </div>
+
+  <!-- Filtros -->
+  <form method="GET" action="/reportes" class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-wrap items-end gap-3">
+    <input type="hidden" name="tipo" value="<%= tipo %>" />
+
+    <% if (tipo !== 'clientes') { %>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Periodo</label>
+        <select
+          id="preset"
+          name="preset"
+          class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="hoy" <%= filtros.preset === 'hoy' ? 'selected' : '' %>>Hoy</option>
+          <option value="ayer" <%= filtros.preset === 'ayer' ? 'selected' : '' %>>Ayer</option>
+          <option value="semana" <%= filtros.preset === 'semana' ? 'selected' : '' %>>Esta semana</option>
+          <option value="mes" <%= filtros.preset === 'mes' ? 'selected' : '' %>>Este mes</option>
+          <option value="mes_anterior" <%= filtros.preset === 'mes_anterior' ? 'selected' : '' %>>Mes anterior</option>
+          <option value="personalizado" <%= filtros.preset === 'personalizado' ? 'selected' : '' %>>Rango personalizado</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Desde</label>
+        <input
+          type="date"
+          id="fechaInicio"
+          name="fechaInicio"
+          value="<%= filtros.fechaInicio %>"
+          class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Hasta</label>
+        <input
+          type="date"
+          id="fechaFin"
+          name="fechaFin"
+          value="<%= filtros.fechaFin %>"
+          class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        />
+      </div>
+    <% } else { %>
+      <p class="text-sm text-slate-500">Este reporte muestra el estado actual de todos los clientes (no depende de un rango de fechas).</p>
+    <% } %>
+
+    <% if (tipo === 'ventas' || tipo === 'abonos') { %>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Cliente</label>
+        <select name="cliente_id" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <option value="">Todos</option>
+          <% clientes.forEach(function (cliente) { %>
+            <option value="<%= cliente.id %>" <%= String(filtros.clienteId) === String(cliente.id) ? 'selected' : '' %>><%= cliente.nombre %></option>
+          <% }); %>
+        </select>
+      </div>
+    <% } %>
+
+    <% if (tipo === 'ventas' || tipo === 'productos') { %>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Producto/servicio</label>
+        <select name="producto_id" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <option value="">Todos</option>
+          <% productos.forEach(function (producto) { %>
+            <option value="<%= producto.id %>" <%= String(filtros.productoId) === String(producto.id) ? 'selected' : '' %>><%= producto.nombre %></option>
+          <% }); %>
+        </select>
+      </div>
+    <% } %>
+
+    <% if (tipo === 'ventas' || tipo === 'productos') { %>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Estado de venta</label>
+        <select name="estado" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <option value="">Todos</option>
+          <option value="PAGADA" <%= filtros.estado === 'PAGADA' ? 'selected' : '' %>>Pagada</option>
+          <option value="PENDIENTE" <%= filtros.estado === 'PENDIENTE' ? 'selected' : '' %>>Pendiente</option>
+          <option value="PARCIAL" <%= filtros.estado === 'PARCIAL' ? 'selected' : '' %>>Parcial</option>
+          <option value="ANULADA" <%= filtros.estado === 'ANULADA' ? 'selected' : '' %>>Anulada</option>
+        </select>
+      </div>
+    <% } %>
+
+    <% if (tipo === 'abonos') { %>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1">Método de pago</label>
+        <select name="metodo_pago" class="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
+          <option value="">Todos</option>
+          <option value="EFECTIVO" <%= filtros.metodoPago === 'EFECTIVO' ? 'selected' : '' %>>Efectivo</option>
+          <option value="TRANSFERENCIA" <%= filtros.metodoPago === 'TRANSFERENCIA' ? 'selected' : '' %>>Transferencia</option>
+          <option value="OTRO" <%= filtros.metodoPago === 'OTRO' ? 'selected' : '' %>>Otro</option>
+        </select>
+      </div>
+    <% } %>
+
+    <button type="submit" class="rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-900 transition-colors">
+      Aplicar filtros
+    </button>
+  </form>
+
+  <!-- Reporte de ventas -->
+  <% if (tipo === 'ventas') { %>
+    <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <%- include('../partials/stat-tile', { label: 'Cantidad de ventas', valor: datos.resumen.cantidadVentas }) %>
+      <%- include('../partials/stat-tile', { label: 'Total vendido', valor: formatMoney(datos.resumen.totalVendido) }) %>
+      <%- include('../partials/stat-tile', { label: 'Total pagado', valor: formatMoney(datos.resumen.totalPagado), colorClass: 'text-green-700' }) %>
+      <%- include('../partials/stat-tile', { label: 'Total a crédito', valor: formatMoney(datos.resumen.totalCredito) }) %>
+      <%- include('../partials/stat-tile', { label: 'Total pendiente', valor: formatMoney(datos.resumen.totalPendiente), colorClass: datos.resumen.totalPendiente > 0 ? 'text-red-700' : 'text-slate-900' }) %>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="px-4 py-3 font-medium">#</th>
+            <th class="px-4 py-3 font-medium">Fecha</th>
+            <th class="px-4 py-3 font-medium">Cliente</th>
+            <th class="px-4 py-3 font-medium hidden lg:table-cell">Forma de pago</th>
+            <th class="px-4 py-3 font-medium text-right">Total</th>
+            <th class="px-4 py-3 font-medium">Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (datos.ventas.length === 0) { %>
+            <tr><td colspan="6" class="px-4 py-6 text-center text-slate-500">Sin resultados para estos filtros.</td></tr>
+          <% } else { %>
+            <% datos.ventas.forEach(function (venta) { %>
+              <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                <td class="px-4 py-3"><a href="/ventas/<%= venta.id %>" class="text-indigo-600 hover:underline">#<%= venta.id %></a></td>
+                <td class="px-4 py-3 text-slate-600"><%= formatFecha(venta.fecha) %></td>
+                <td class="px-4 py-3 text-slate-900"><%= venta.cliente_nombre %></td>
+                <td class="px-4 py-3 text-slate-600 hidden lg:table-cell"><%= etiquetasTipoPago[venta.tipo_pago] || venta.tipo_pago %></td>
+                <td class="px-4 py-3 text-right font-medium text-slate-900"><%= formatMoney(venta.total) %></td>
+                <td class="px-4 py-3"><%- include('../partials/badge-estado-venta', { estado: venta.estado }) %></td>
+              </tr>
+            <% }); %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    <% if (datos.totalCoincidencias > datos.ventas.length) { %>
+      <p class="text-xs text-slate-400">Mostrando <%= datos.ventas.length %> de <%= datos.totalCoincidencias %> ventas. Ve a <a href="/ventas" class="text-indigo-600 hover:underline">Ventas</a> para ver el listado completo paginado.</p>
+    <% } %>
+  <% } %>
+
+  <!-- Reporte de abonos -->
+  <% if (tipo === 'abonos') { %>
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      <%- include('../partials/stat-tile', { label: 'Cantidad de abonos', valor: datos.resumen.cantidadAbonos }) %>
+      <%- include('../partials/stat-tile', { label: 'Total recibido', valor: formatMoney(datos.resumen.totalRecibido), colorClass: 'text-green-700' }) %>
+      <% datos.resumen.porMetodo.forEach(function (m) { %>
+        <%- include('../partials/stat-tile', { label: etiquetasMetodoPago[m.metodo_pago] || m.metodo_pago, valor: formatMoney(m.total) }) %>
+      <% }); %>
+    </div>
+
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="px-4 py-3 font-medium">Fecha</th>
+            <th class="px-4 py-3 font-medium">Cliente</th>
+            <th class="px-4 py-3 font-medium">Método</th>
+            <th class="px-4 py-3 font-medium hidden lg:table-cell">Observación</th>
+            <th class="px-4 py-3 font-medium text-right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (datos.abonos.length === 0) { %>
+            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">Sin resultados para estos filtros.</td></tr>
+          <% } else { %>
+            <% datos.abonos.forEach(function (abono) { %>
+              <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                <td class="px-4 py-3 text-slate-600"><%= formatFecha(abono.fecha) %></td>
+                <td class="px-4 py-3"><a href="/clientes/<%= abono.cliente_id %>" class="text-indigo-700 hover:underline"><%= abono.cliente_nombre %></a></td>
+                <td class="px-4 py-3 text-slate-600"><%= etiquetasMetodoPago[abono.metodo_pago] || abono.metodo_pago %></td>
+                <td class="px-4 py-3 text-slate-600 hidden lg:table-cell truncate max-w-xs"><%= abono.observacion || '—' %></td>
+                <td class="px-4 py-3 text-right font-medium text-green-700"><%= formatMoney(abono.valor) %></td>
+              </tr>
+            <% }); %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+    <% if (datos.totalCoincidencias > datos.abonos.length) { %>
+      <p class="text-xs text-slate-400">Mostrando <%= datos.abonos.length %> de <%= datos.totalCoincidencias %> abonos. Ve a <a href="/abonos" class="text-indigo-600 hover:underline">Abonos</a> para ver el listado completo paginado.</p>
+    <% } %>
+  <% } %>
+
+  <!-- Reporte de clientes -->
+  <% if (tipo === 'clientes') { %>
+    <div class="grid grid-cols-3 gap-3">
+      <%- include('../partials/stat-tile', { label: 'Clientes totales', valor: datos.resumen.totalClientes }) %>
+      <%- include('../partials/stat-tile', { label: 'Con deuda', valor: datos.resumen.clientesConDeuda, colorClass: datos.resumen.clientesConDeuda > 0 ? 'text-red-700' : 'text-slate-900' }) %>
+      <%- include('../partials/stat-tile', { label: 'Sin deuda', valor: datos.resumen.clientesSinDeuda, colorClass: 'text-green-700' }) %>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-x-auto">
+        <h2 class="px-4 pt-4 text-sm font-semibold text-slate-900">Clientes con mayor saldo</h2>
+        <table class="w-full text-sm mt-2">
+          <thead>
+            <tr class="border-b border-slate-200 text-left text-slate-500">
+              <th class="px-4 py-3 font-medium">Cliente</th>
+              <th class="px-4 py-3 font-medium text-right">Saldo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (datos.mayorSaldo.length === 0) { %>
+              <tr><td colspan="2" class="px-4 py-6 text-center text-slate-500">Ningún cliente tiene deuda.</td></tr>
+            <% } else { %>
+              <% datos.mayorSaldo.forEach(function (cliente) { %>
+                <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                  <td class="px-4 py-3"><a href="/clientes/<%= cliente.id %>" class="text-indigo-700 hover:underline"><%= cliente.nombre %></a></td>
+                  <td class="px-4 py-3 text-right font-medium text-red-700"><%= formatMoney(cliente.saldo) %></td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-x-auto">
+        <h2 class="px-4 pt-4 text-sm font-semibold text-slate-900">Clientes con deuda más antigua</h2>
+        <table class="w-full text-sm mt-2">
+          <thead>
+            <tr class="border-b border-slate-200 text-left text-slate-500">
+              <th class="px-4 py-3 font-medium">Cliente</th>
+              <th class="px-4 py-3 font-medium text-right">Saldo</th>
+              <th class="px-4 py-3 font-medium text-right">Antigüedad</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if (datos.deudaAntigua.length === 0) { %>
+              <tr><td colspan="3" class="px-4 py-6 text-center text-slate-500">Ningún cliente tiene deuda.</td></tr>
+            <% } else { %>
+              <% datos.deudaAntigua.forEach(function (cliente) { %>
+                <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                  <td class="px-4 py-3"><a href="/clientes/<%= cliente.id %>" class="text-indigo-700 hover:underline"><%= cliente.nombre %></a></td>
+                  <td class="px-4 py-3 text-right font-medium text-red-700"><%= formatMoney(cliente.saldo) %></td>
+                  <td class="px-4 py-3 text-right text-slate-600"><%= cliente.dias_antiguedad %> días · <%= cliente.categoria %></td>
+                </tr>
+              <% }); %>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  <% } %>
+
+  <!-- Reporte de productos -->
+  <% if (tipo === 'productos') { %>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="px-4 py-3 font-medium">#</th>
+            <th class="px-4 py-3 font-medium">Producto/servicio</th>
+            <th class="px-4 py-3 font-medium">Tipo</th>
+            <th class="px-4 py-3 font-medium text-right">Cantidad vendida</th>
+            <th class="px-4 py-3 font-medium text-right">Total generado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% if (datos.productosMasVendidos.length === 0) { %>
+            <tr><td colspan="5" class="px-4 py-6 text-center text-slate-500">Sin ventas para estos filtros.</td></tr>
+          <% } else { %>
+            <% datos.productosMasVendidos.forEach(function (producto, indice) { %>
+              <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                <td class="px-4 py-3 text-slate-500"><%= indice + 1 %></td>
+                <td class="px-4 py-3 text-slate-900"><%= producto.nombre %></td>
+                <td class="px-4 py-3">
+                  <span class="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-1">
+                    <%= producto.tipo === 'servicio' ? 'Servicio' : 'Producto' %>
+                  </span>
+                </td>
+                <td class="px-4 py-3 text-right text-slate-600"><%= Number(producto.cantidad_vendida) %></td>
+                <td class="px-4 py-3 text-right font-medium text-slate-900"><%= formatMoney(producto.total_generado) %></td>
+              </tr>
+            <% }); %>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  <% } %>
+</div>
+
+<script src="/js/reportes-filtros.js"></script>
+
+<%- include('../partials/footer') %>

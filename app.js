@@ -10,6 +10,7 @@ const clienteRoutes = require('./routes/clienteRoutes');
 const productoRoutes = require('./routes/productoRoutes');
 const ventaRoutes = require('./routes/ventaRoutes');
 const abonoRoutes = require('./routes/abonoRoutes');
+const reporteRoutes = require('./routes/reporteRoutes');
 const dashboardController = require('./controllers/dashboardController');
 const { formatMoney, formatFecha } = require('./utils/format');
 const { toSafeJsonScript } = require('./utils/safeJson');
@@ -51,6 +52,7 @@ app.use('/clientes', requireAuth, clienteRoutes);
 app.use('/productos', requireAuth, productoRoutes);
 app.use('/ventas', requireAuth, ventaRoutes);
 app.use('/abonos', requireAuth, abonoRoutes);
+app.use('/reportes', requireAuth, reporteRoutes);
 
 app.use((req, res) => {
   res.status(404).render('404', { titulo: 'Página no encontrada' });

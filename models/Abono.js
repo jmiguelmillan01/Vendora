@@ -1,12 +1,30 @@
 const pool = require('../config/database');
+const Venta = require('./Venta');
 
 async function create({ clienteId, valor, metodoPago, observacion = null }) {
-  const [resultado] = await pool.query(
-    `INSERT INTO abonos (cliente_id, valor, metodo_pago, observacion)
-     VALUES (?, ?, ?, ?)`,
-    [clienteId, valor, metodoPago, observacion]
-  );
-  return resultado.insertId;
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [resultado] = await connection.query(
+      `INSERT INTO abonos (cliente_id, valor, metodo_pago, observacion)
+       VALUES (?, ?, ?, ?)`,
+      [clienteId, valor, metodoPago, observacion]
+    );
+
+    // El abono reduce la deuda del cliente, así que las ventas a crédito
+    // afectadas deben quedar reflejadas como pagadas/parciales de inmediato.
+    await Venta.reconciliarEstadosCliente(connection, clienteId);
+
+    await connection.commit();
+    return resultado.insertId;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
 }
 
 async function findAll({

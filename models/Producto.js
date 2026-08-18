@@ -68,9 +68,22 @@ async function findActivos() {
   return rows;
 }
 
-async function findMasVendidos({ fechaInicio = '', fechaFin = '', limit = 5 } = {}) {
-  const condiciones = ["v.estado != 'ANULADA'"];
+async function findMasVendidos({
+  fechaInicio = '',
+  fechaFin = '',
+  productoId = '',
+  estado = '',
+  limit = 5
+} = {}) {
+  const condiciones = [];
   const params = [];
+
+  if (estado) {
+    condiciones.push('v.estado = ?');
+    params.push(estado);
+  } else {
+    condiciones.push("v.estado != 'ANULADA'");
+  }
 
   if (fechaInicio) {
     condiciones.push('v.fecha >= ?');
@@ -80,6 +93,11 @@ async function findMasVendidos({ fechaInicio = '', fechaFin = '', limit = 5 } = 
   if (fechaFin) {
     condiciones.push('v.fecha <= ?');
     params.push(`${fechaFin} 23:59:59`);
+  }
+
+  if (productoId) {
+    condiciones.push('p.id = ?');
+    params.push(productoId);
   }
 
   const [rows] = await pool.query(

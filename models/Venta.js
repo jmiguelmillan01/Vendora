@@ -113,11 +113,54 @@ async function create({
   }
 }
 
+// Los abonos se registran a nivel de cliente, no de una venta específica (el
+// esquema no tiene abonos.venta_id), así que el estado de cada venta a crédito
+// debe recalcularse cada vez que cambia el total abonado. Se distribuye el
+// total abonado del cliente entre sus ventas a crédito de la más antigua a la
+// más reciente (FIFO): la primera deuda en generarse es la primera en saldarse.
+// tipo_pago nunca cambia aquí (es el registro histórico de cómo se transó la
+// venta); solo estado se actualiza, como estado de pago vigente.
+async function reconciliarEstadosCliente(connection, clienteId) {
+  const [ventasCredito] = await connection.query(
+    `SELECT id, total FROM ventas
+     WHERE cliente_id = ? AND tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'
+     ORDER BY fecha ASC, id ASC`,
+    [clienteId]
+  );
+
+  if (ventasCredito.length === 0) return;
+
+  const [[{ totalAbonado }]] = await connection.query(
+    'SELECT COALESCE(SUM(valor), 0) AS totalAbonado FROM abonos WHERE cliente_id = ?',
+    [clienteId]
+  );
+
+  let restante = Number(totalAbonado);
+
+  for (const venta of ventasCredito) {
+    const total = Number(venta.total);
+    let nuevoEstado;
+
+    if (restante >= total) {
+      nuevoEstado = 'PAGADA';
+      restante -= total;
+    } else if (restante > 0) {
+      nuevoEstado = 'PARCIAL';
+      restante = 0;
+    } else {
+      nuevoEstado = 'PENDIENTE';
+    }
+
+    await connection.query('UPDATE ventas SET estado = ? WHERE id = ?', [nuevoEstado, venta.id]);
+  }
+}
+
 async function findAll({
   clienteId = '',
   estado = '',
   fechaInicio = '',
   fechaFin = '',
+  productoId = '',
   page = 1,
   perPage = 10
 } = {}) {
@@ -142,6 +185,11 @@ async function findAll({
   if (fechaFin) {
     condiciones.push('v.fecha <= ?');
     params.push(`${fechaFin} 23:59:59`);
+  }
+
+  if (productoId) {
+    condiciones.push('v.id IN (SELECT venta_id FROM detalle_venta WHERE producto_id = ?)');
+    params.push(productoId);
   }
 
   const where = condiciones.length ? `WHERE ${condiciones.join(' AND ')}` : '';
@@ -194,5 +242,6 @@ module.exports = {
   create,
   findAll,
   findById,
-  findDetalles
+  findDetalles,
+  reconciliarEstadosCliente
 };

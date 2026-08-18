@@ -24,10 +24,22 @@
 
   <!-- Saldo destacado -->
   <div class="rounded-xl border p-5 sm:p-6 <%= resumen.saldo > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200' %>">
-    <p class="text-sm <%= resumen.saldo > 0 ? 'text-red-700' : 'text-green-700' %>">Saldo pendiente</p>
-    <p class="text-3xl sm:text-4xl font-bold <%= resumen.saldo > 0 ? 'text-red-700' : 'text-green-700' %>">
-      <%= resumen.saldo > 0 ? formatMoney(resumen.saldo) : 'SIN DEUDA' %>
-    </p>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <p class="text-sm <%= resumen.saldo > 0 ? 'text-red-700' : 'text-green-700' %>">Saldo pendiente</p>
+        <p class="text-3xl sm:text-4xl font-bold <%= resumen.saldo > 0 ? 'text-red-700' : 'text-green-700' %>">
+          <%= resumen.saldo > 0 ? formatMoney(resumen.saldo) : 'SIN DEUDA' %>
+        </p>
+      </div>
+      <% if (resumen.saldo > 0) { %>
+        <a
+          href="/abonos/nuevo?cliente_id=<%= cliente.id %>"
+          class="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-3 sm:py-2.5 text-white text-sm font-medium shadow hover:bg-red-700 active:bg-red-800 transition-colors"
+        >
+          Registrar abono
+        </a>
+      <% } %>
+    </div>
   </div>
 
   <!-- Resumen -->

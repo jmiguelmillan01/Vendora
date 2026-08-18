@@ -9,6 +9,7 @@ const authRoutes = require('./routes/authRoutes');
 const clienteRoutes = require('./routes/clienteRoutes');
 const productoRoutes = require('./routes/productoRoutes');
 const ventaRoutes = require('./routes/ventaRoutes');
+const abonoRoutes = require('./routes/abonoRoutes');
 const { formatMoney, formatFecha } = require('./utils/format');
 
 const app = express();
@@ -47,6 +48,7 @@ app.get('/', requireAuth, (req, res) => {
 app.use('/clientes', requireAuth, clienteRoutes);
 app.use('/productos', requireAuth, productoRoutes);
 app.use('/ventas', requireAuth, ventaRoutes);
+app.use('/abonos', requireAuth, abonoRoutes);
 
 app.use((req, res) => {
   res.status(404).render('404', { titulo: 'Página no encontrada' });

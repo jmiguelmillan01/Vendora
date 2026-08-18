@@ -6,6 +6,21 @@ const COLUMNAS_ORDEN = {
   saldo: 'saldo'
 };
 
+const SALDO_JOIN = `
+  LEFT JOIN (
+    SELECT cliente_id, SUM(total) AS total_credito
+    FROM ventas
+    WHERE tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'
+    GROUP BY cliente_id
+  ) v ON v.cliente_id = c.id
+  LEFT JOIN (
+    SELECT cliente_id, SUM(valor) AS total_abonado
+    FROM abonos
+    GROUP BY cliente_id
+  ) a ON a.cliente_id = c.id
+`;
+const SALDO_EXPR = 'COALESCE(v.total_credito, 0) - COALESCE(a.total_abonado, 0) AS saldo';
+
 async function findAll({
   search = '',
   activo = '',
@@ -35,20 +50,9 @@ async function findAll({
   const offset = (paginaActual - 1) * perPage;
 
   const [rows] = await pool.query(
-    `SELECT c.*,
-        COALESCE(v.total_credito, 0) - COALESCE(a.total_abonado, 0) AS saldo
+    `SELECT c.*, ${SALDO_EXPR}
      FROM clientes c
-     LEFT JOIN (
-       SELECT cliente_id, SUM(total) AS total_credito
-       FROM ventas
-       WHERE tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'
-       GROUP BY cliente_id
-     ) v ON v.cliente_id = c.id
-     LEFT JOIN (
-       SELECT cliente_id, SUM(valor) AS total_abonado
-       FROM abonos
-       GROUP BY cliente_id
-     ) a ON a.cliente_id = c.id
+     ${SALDO_JOIN}
      ${where}
      ORDER BY ${columnaOrden} ${direccion}
      LIMIT ? OFFSET ?`,
@@ -71,6 +75,17 @@ async function findById(id) {
 async function findActivos() {
   const [rows] = await pool.query(
     'SELECT id, nombre, telefono FROM clientes WHERE activo = 1 ORDER BY nombre ASC'
+  );
+  return rows;
+}
+
+async function findActivosConSaldo() {
+  const [rows] = await pool.query(
+    `SELECT c.id, c.nombre, c.telefono, ${SALDO_EXPR}
+     FROM clientes c
+     ${SALDO_JOIN}
+     WHERE c.activo = 1
+     ORDER BY c.nombre ASC`
   );
   return rows;
 }
@@ -160,6 +175,7 @@ module.exports = {
   findAll,
   findById,
   findActivos,
+  findActivosConSaldo,
   create,
   update,
   setActivo,

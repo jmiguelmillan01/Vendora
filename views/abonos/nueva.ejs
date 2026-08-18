@@ -1,0 +1,118 @@
+<%- include('../partials/header', { titulo: 'Nuevo abono', activeNav: 'abonos' }) %>
+
+<div class="max-w-xl mx-auto space-y-5">
+  <div class="flex items-center gap-2 text-sm text-slate-500">
+    <a href="/abonos" class="hover:text-indigo-700">Abonos</a>
+    <span>/</span>
+    <span class="text-slate-700">Nuevo</span>
+  </div>
+
+  <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Nuevo abono</h1>
+
+  <% if (errores.length) { %>
+    <div class="rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
+      <ul class="list-disc list-inside space-y-1">
+        <% errores.forEach(function (mensaje) { %>
+          <li><%= mensaje %></li>
+        <% }); %>
+      </ul>
+    </div>
+  <% } %>
+
+  <% if (clientes.length === 0) { %>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-6 text-sm text-slate-600 space-y-3">
+      <p>No tienes clientes activos registrados.</p>
+      <a href="/clientes/nuevo" class="text-indigo-600 font-medium hover:underline">+ Crear un cliente</a>
+    </div>
+  <% } else { %>
+    <form method="POST" action="/abonos" class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-6 space-y-4">
+      <div>
+        <label for="cliente_id" class="block text-sm font-medium text-slate-700 mb-1">
+          Cliente <span class="text-red-500">*</span>
+        </label>
+        <select
+          id="cliente_id"
+          name="cliente_id"
+          required
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="">Selecciona un cliente...</option>
+          <% clientes.forEach(function (cliente) { %>
+            <option
+              value="<%= cliente.id %>"
+              data-saldo="<%= cliente.saldo %>"
+              <%= String(valores.cliente_id) === String(cliente.id) ? 'selected' : '' %>
+            >
+              <%= cliente.nombre %><% if (Number(cliente.saldo) > 0) { %> — Debe <%= formatMoney(cliente.saldo) %><% } else { %> — Al día<% } %>
+            </option>
+          <% }); %>
+        </select>
+        <p id="saldo-cliente" class="mt-1.5 text-sm font-medium hidden"></p>
+      </div>
+
+      <div>
+        <label for="valor" class="block text-sm font-medium text-slate-700 mb-1">
+          Valor del abono <span class="text-red-500">*</span>
+        </label>
+        <input
+          type="number"
+          id="valor"
+          name="valor"
+          min="0.01"
+          step="0.01"
+          required
+          value="<%= valores.valor || '' %>"
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          placeholder="0"
+        />
+      </div>
+
+      <div>
+        <label for="metodo_pago" class="block text-sm font-medium text-slate-700 mb-1">
+          Método de pago <span class="text-red-500">*</span>
+        </label>
+        <select
+          id="metodo_pago"
+          name="metodo_pago"
+          required
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="">Selecciona...</option>
+          <option value="EFECTIVO" <%= valores.metodo_pago === 'EFECTIVO' ? 'selected' : '' %>>Efectivo</option>
+          <option value="TRANSFERENCIA" <%= valores.metodo_pago === 'TRANSFERENCIA' ? 'selected' : '' %>>Transferencia</option>
+          <option value="OTRO" <%= valores.metodo_pago === 'OTRO' ? 'selected' : '' %>>Otro</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="observacion" class="block text-sm font-medium text-slate-700 mb-1">Observación</label>
+        <textarea
+          id="observacion"
+          name="observacion"
+          rows="2"
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          placeholder="Notas adicionales (opcional)"
+        ><%= valores.observacion || '' %></textarea>
+      </div>
+
+      <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+        <a
+          href="/abonos"
+          class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-3 sm:py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+        >
+          Cancelar
+        </a>
+        <button
+          type="submit"
+          class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 sm:py-2.5 text-sm font-medium text-white shadow hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
+        >
+          Registrar abono
+        </button>
+      </div>
+    </form>
+  <% } %>
+</div>
+
+<script src="/js/abono-form.js"></script>
+
+<%- include('../partials/footer') %>

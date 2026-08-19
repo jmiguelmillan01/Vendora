@@ -1,0 +1,135 @@
+<%- include('../partials/header', { titulo: 'Productos', activeNav: 'productos' }) %>
+
+<div class="max-w-5xl mx-auto space-y-5">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Productos / Servicios</h1>
+    <a
+      href="/productos/nuevo"
+      class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 sm:py-2.5 text-white text-sm font-medium shadow hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
+    >
+      + Nuevo producto/servicio
+    </a>
+  </div>
+
+  <form method="GET" action="/productos" class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col sm:flex-row gap-3">
+    <input
+      type="text"
+      name="q"
+      value="<%= filtros.search %>"
+      placeholder="Buscar por nombre o descripción..."
+      class="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+    />
+    <select
+      name="tipo"
+      class="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+    >
+      <option value="" <%= filtros.tipo === '' ? 'selected' : '' %>>Todos los tipos</option>
+      <option value="producto" <%= filtros.tipo === 'producto' ? 'selected' : '' %>>Producto</option>
+      <option value="servicio" <%= filtros.tipo === 'servicio' ? 'selected' : '' %>>Servicio</option>
+    </select>
+    <select
+      name="activo"
+      class="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+    >
+      <option value="" <%= filtros.activo === '' ? 'selected' : '' %>>Todos</option>
+      <option value="1" <%= filtros.activo === '1' ? 'selected' : '' %>>Activos</option>
+      <option value="0" <%= filtros.activo === '0' ? 'selected' : '' %>>Inactivos</option>
+    </select>
+    <button
+      type="submit"
+      class="inline-flex items-center justify-center rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-900 transition-colors"
+    >
+      Buscar
+    </button>
+  </form>
+
+  <% if (productos.length === 0) { %>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 text-center text-sm text-slate-500">
+      No se encontraron productos o servicios con los filtros seleccionados.
+    </div>
+  <% } else { %>
+    <!-- Tabla (escritorio / tablet) -->
+    <div class="hidden md:block bg-white border border-slate-200 rounded-xl shadow-sm overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="px-4 py-3 font-medium">Nombre</th>
+            <th class="px-4 py-3 font-medium">Tipo</th>
+            <th class="px-4 py-3 font-medium hidden lg:table-cell">Descripción</th>
+            <th class="px-4 py-3 font-medium text-right">Precio</th>
+            <th class="px-4 py-3 font-medium">Estado</th>
+            <th class="px-4 py-3 font-medium text-right">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% productos.forEach(function (producto) { %>
+            <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+              <td class="px-4 py-3 font-medium text-slate-900"><%= producto.nombre %></td>
+              <td class="px-4 py-3">
+                <span class="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-1">
+                  <%= producto.tipo === 'servicio' ? 'Servicio' : 'Producto' %>
+                </span>
+              </td>
+              <td class="px-4 py-3 text-slate-600 hidden lg:table-cell truncate max-w-xs"><%= producto.descripcion || '—' %></td>
+              <td class="px-4 py-3 text-right font-medium text-slate-900"><%= formatMoney(producto.precio) %></td>
+              <td class="px-4 py-3">
+                <% if (producto.activo) { %>
+                  <span class="inline-flex items-center rounded-full bg-slate-100 text-slate-700 text-xs font-medium px-2.5 py-1">Activo</span>
+                <% } else { %>
+                  <span class="inline-flex items-center rounded-full bg-slate-100 text-slate-400 text-xs font-medium px-2.5 py-1">Inactivo</span>
+                <% } %>
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex items-center justify-end gap-2">
+                  <a href="/productos/<%= producto.id %>/editar" class="text-slate-500 hover:text-indigo-700 text-xs font-medium">Editar</a>
+                  <form method="POST" action="/productos/<%= producto.id %>/toggle">
+                    <button type="submit" class="text-xs font-medium <%= producto.activo ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700' %>">
+                      <%= producto.activo ? 'Desactivar' : 'Activar' %>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Cards (móvil) -->
+    <div class="md:hidden space-y-3">
+      <% productos.forEach(function (producto) { %>
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <span class="font-semibold text-slate-900"><%= producto.nombre %></span>
+            <span class="shrink-0 font-medium text-slate-900"><%= formatMoney(producto.precio) %></span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="inline-flex items-center rounded-full bg-indigo-50 text-indigo-700 text-xs font-medium px-2.5 py-1">
+              <%= producto.tipo === 'servicio' ? 'Servicio' : 'Producto' %>
+            </span>
+            <% if (producto.activo) { %>
+              <span class="text-xs font-medium text-slate-500">Activo</span>
+            <% } else { %>
+              <span class="text-xs font-medium text-slate-400">Inactivo</span>
+            <% } %>
+          </div>
+          <% if (producto.descripcion) { %>
+            <p class="text-sm text-slate-500"><%= producto.descripcion %></p>
+          <% } %>
+          <div class="flex items-center justify-end gap-1 -my-2 pt-2 border-t border-slate-100">
+            <a href="/productos/<%= producto.id %>/editar" class="inline-block px-2 py-2 text-xs font-medium text-slate-500">Editar</a>
+            <form method="POST" action="/productos/<%= producto.id %>/toggle">
+              <button type="submit" class="px-2 py-2 text-xs font-medium <%= producto.activo ? 'text-red-600' : 'text-green-600' %>">
+                <%= producto.activo ? 'Desactivar' : 'Activar' %>
+              </button>
+            </form>
+          </div>
+        </div>
+      <% }); %>
+    </div>
+  <% } %>
+
+  <%- include('../partials/pagination') %>
+</div>
+
+<%- include('../partials/footer') %>

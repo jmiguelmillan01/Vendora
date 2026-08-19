@@ -1,0 +1,104 @@
+<%- include('../partials/header', { titulo: titulo, activeNav: 'productos' }) %>
+
+<div class="max-w-2xl mx-auto space-y-5">
+  <div class="flex items-center gap-2 text-sm text-slate-500">
+    <a href="/productos" class="hover:text-indigo-700">Productos</a>
+    <span>/</span>
+    <span class="text-slate-700"><%= esEdicion ? 'Editar' : 'Nuevo' %></span>
+  </div>
+
+  <h1 class="text-xl sm:text-2xl font-bold text-slate-900"><%= titulo %></h1>
+
+  <% if (errores.length) { %>
+    <div class="rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm px-4 py-3">
+      <ul class="list-disc list-inside space-y-1">
+        <% errores.forEach(function (mensaje) { %>
+          <li><%= mensaje %></li>
+        <% }); %>
+      </ul>
+    </div>
+  <% } %>
+
+  <form
+    method="POST"
+    action="<%= esEdicion ? '/productos/' + producto.id : '/productos' %>"
+    class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 sm:p-6 space-y-4"
+  >
+    <div>
+      <label for="nombre" class="block text-sm font-medium text-slate-700 mb-1">
+        Nombre <span class="text-red-500">*</span>
+      </label>
+      <input
+        type="text"
+        id="nombre"
+        name="nombre"
+        value="<%= producto.nombre || '' %>"
+        required
+        maxlength="150"
+        class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        placeholder="Nombre del producto o servicio"
+      />
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div>
+        <label for="tipo" class="block text-sm font-medium text-slate-700 mb-1">
+          Tipo <span class="text-red-500">*</span>
+        </label>
+        <select
+          id="tipo"
+          name="tipo"
+          required
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          <option value="producto" <%= (producto.tipo || 'producto') === 'producto' ? 'selected' : '' %>>Producto</option>
+          <option value="servicio" <%= producto.tipo === 'servicio' ? 'selected' : '' %>>Servicio</option>
+        </select>
+      </div>
+      <div>
+        <label for="precio" class="block text-sm font-medium text-slate-700 mb-1">
+          Precio <span class="text-red-500">*</span>
+        </label>
+        <input
+          type="number"
+          id="precio"
+          name="precio"
+          value="<%= producto.precio || '' %>"
+          required
+          min="0"
+          step="0.01"
+          class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          placeholder="0"
+        />
+      </div>
+    </div>
+
+    <div>
+      <label for="descripcion" class="block text-sm font-medium text-slate-700 mb-1">Descripción</label>
+      <textarea
+        id="descripcion"
+        name="descripcion"
+        rows="3"
+        class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        placeholder="Detalles adicionales (opcional)"
+      ><%= producto.descripcion || '' %></textarea>
+    </div>
+
+    <div class="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 pt-2">
+      <a
+        href="/productos"
+        class="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-3 sm:py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+      >
+        Cancelar
+      </a>
+      <button
+        type="submit"
+        class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 sm:py-2.5 text-sm font-medium text-white shadow hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
+      >
+        <%= esEdicion ? 'Guardar cambios' : 'Crear producto/servicio' %>
+      </button>
+    </div>
+  </form>
+</div>
+
+<%- include('../partials/footer') %>

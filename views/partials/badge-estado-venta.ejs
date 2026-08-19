@@ -1,0 +1,17 @@
+<%
+  const estilosEstado = {
+    PAGADA: 'bg-green-50 text-green-700',
+    PENDIENTE: 'bg-red-50 text-red-700',
+    PARCIAL: 'bg-amber-50 text-amber-700',
+    ANULADA: 'bg-slate-100 text-slate-400 line-through'
+  };
+  const etiquetasEstado = {
+    PAGADA: 'Pagada',
+    PENDIENTE: 'Pendiente',
+    PARCIAL: 'Parcial',
+    ANULADA: 'Anulada'
+  };
+%>
+<span class="inline-flex items-center rounded-full text-xs font-medium px-2.5 py-1 <%= estilosEstado[estado] || 'bg-slate-100 text-slate-600' %>">
+  <%= etiquetasEstado[estado] || estado %>
+</span>

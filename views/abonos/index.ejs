@@ -1,0 +1,114 @@
+<%- include('../partials/header', { titulo: 'Abonos', activeNav: 'abonos' }) %>
+
+<%
+  const etiquetasMetodoPago = { EFECTIVO: 'Efectivo', TRANSFERENCIA: 'Transferencia', OTRO: 'Otro' };
+%>
+
+<div class="max-w-5xl mx-auto space-y-5">
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <h1 class="text-xl sm:text-2xl font-bold text-slate-900">Abonos</h1>
+    <a
+      href="/abonos/nuevo"
+      class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-3 sm:py-2.5 text-white text-sm font-medium shadow hover:bg-indigo-700 active:bg-indigo-800 transition-colors"
+    >
+      + Nuevo abono
+    </a>
+  </div>
+
+  <form method="GET" action="/abonos" class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-wrap gap-3">
+    <select
+      name="cliente_id"
+      class="flex-1 min-w-[10rem] rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+    >
+      <option value="">Todos los clientes</option>
+      <% clientes.forEach(function (cliente) { %>
+        <option value="<%= cliente.id %>" <%= String(filtros.clienteId) === String(cliente.id) ? 'selected' : '' %>>
+          <%= cliente.nombre %>
+        </option>
+      <% }); %>
+    </select>
+    <select
+      name="metodo_pago"
+      class="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+    >
+      <option value="" <%= filtros.metodoPago === '' ? 'selected' : '' %>>Todos los métodos</option>
+      <option value="EFECTIVO" <%= filtros.metodoPago === 'EFECTIVO' ? 'selected' : '' %>>Efectivo</option>
+      <option value="TRANSFERENCIA" <%= filtros.metodoPago === 'TRANSFERENCIA' ? 'selected' : '' %>>Transferencia</option>
+      <option value="OTRO" <%= filtros.metodoPago === 'OTRO' ? 'selected' : '' %>>Otro</option>
+    </select>
+    <input
+      type="date"
+      name="fechaInicio"
+      value="<%= filtros.fechaInicio %>"
+      class="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+    />
+    <input
+      type="date"
+      name="fechaFin"
+      value="<%= filtros.fechaFin %>"
+      class="rounded-lg border border-slate-300 px-3 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+    />
+    <button
+      type="submit"
+      class="inline-flex items-center justify-center rounded-lg bg-slate-800 px-4 py-2.5 text-sm font-medium text-white hover:bg-slate-900 transition-colors"
+    >
+      Filtrar
+    </button>
+  </form>
+
+  <% if (abonos.length === 0) { %>
+    <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-8 text-center text-sm text-slate-500">
+      No se encontraron abonos con los filtros seleccionados.
+    </div>
+  <% } else { %>
+    <!-- Tabla (escritorio / tablet) -->
+    <div class="hidden md:block bg-white border border-slate-200 rounded-xl shadow-sm overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 text-left text-slate-500">
+            <th class="px-4 py-3 font-medium">Fecha</th>
+            <th class="px-4 py-3 font-medium">Cliente</th>
+            <th class="px-4 py-3 font-medium">Método</th>
+            <th class="px-4 py-3 font-medium hidden lg:table-cell">Observación</th>
+            <th class="px-4 py-3 font-medium text-right">Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% abonos.forEach(function (abono) { %>
+            <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+              <td class="px-4 py-3 text-slate-600"><%= formatFecha(abono.fecha) %></td>
+              <td class="px-4 py-3">
+                <a href="/clientes/<%= abono.cliente_id %>" class="font-medium text-indigo-700 hover:underline">
+                  <%= abono.cliente_nombre %>
+                </a>
+              </td>
+              <td class="px-4 py-3 text-slate-600"><%= etiquetasMetodoPago[abono.metodo_pago] || abono.metodo_pago %></td>
+              <td class="px-4 py-3 text-slate-600 hidden lg:table-cell truncate max-w-xs"><%= abono.observacion || '—' %></td>
+              <td class="px-4 py-3 text-right font-medium text-green-700"><%= formatMoney(abono.valor) %></td>
+            </tr>
+          <% }); %>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Cards (móvil) -->
+    <div class="md:hidden space-y-3">
+      <% abonos.forEach(function (abono) { %>
+        <a href="/clientes/<%= abono.cliente_id %>" class="block bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-2">
+          <div class="flex items-start justify-between gap-2">
+            <span class="font-semibold text-slate-900"><%= abono.cliente_nombre %></span>
+            <span class="shrink-0 font-medium text-green-700"><%= formatMoney(abono.valor) %></span>
+          </div>
+          <p class="text-sm text-slate-500"><%= formatFecha(abono.fecha) %> · <%= etiquetasMetodoPago[abono.metodo_pago] || abono.metodo_pago %></p>
+          <% if (abono.observacion) { %>
+            <p class="text-sm text-slate-500"><%= abono.observacion %></p>
+          <% } %>
+        </a>
+      <% }); %>
+    </div>
+  <% } %>
+
+  <%- include('../partials/pagination') %>
+</div>
+
+<%- include('../partials/footer') %>

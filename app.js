@@ -20,6 +20,14 @@ const { toSafeJsonScript } = require('./utils/safeJson');
 
 const app = express();
 
+// Necesario detrás de un proxy inverso (Railway, Render, etc.): el proxy
+// termina el HTTPS y le reenvía la petición a la app como HTTP simple, así
+// que sin esto Express cree que la conexión no es segura y express-session
+// se niega a enviar la cookie de sesión (que requiere `secure: true` en
+// producción). Con trust proxy activado, Express confía en la cabecera
+// X-Forwarded-Proto que pone el proxy para saber que sí fue HTTPS.
+app.set('trust proxy', 1);
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 

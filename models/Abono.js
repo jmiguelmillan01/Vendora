@@ -1,21 +1,21 @@
 const pool = require('../config/database');
 const Venta = require('./Venta');
 
-async function create({ clienteId, valor, metodoPago, observacion = null }) {
+async function create({ usuarioId, clienteId, valor, metodoPago, observacion = null }) {
   const connection = await pool.getConnection();
 
   try {
     await connection.beginTransaction();
 
     const [resultado] = await connection.query(
-      `INSERT INTO abonos (cliente_id, valor, metodo_pago, observacion)
-       VALUES (?, ?, ?, ?)`,
-      [clienteId, valor, metodoPago, observacion]
+      `INSERT INTO abonos (cliente_id, usuario_id, valor, metodo_pago, observacion)
+       VALUES (?, ?, ?, ?, ?)`,
+      [clienteId, usuarioId, valor, metodoPago, observacion]
     );
 
     // El abono reduce la deuda del cliente, así que las ventas a crédito
     // afectadas deben quedar reflejadas como pagadas/parciales de inmediato.
-    await Venta.reconciliarEstadosCliente(connection, clienteId);
+    await Venta.reconciliarEstadosCliente(connection, clienteId, usuarioId);
 
     await connection.commit();
     return resultado.insertId;
@@ -28,6 +28,7 @@ async function create({ clienteId, valor, metodoPago, observacion = null }) {
 }
 
 async function findAll({
+  usuarioId,
   clienteId = '',
   metodoPago = '',
   fechaInicio = '',
@@ -35,8 +36,8 @@ async function findAll({
   page = 1,
   perPage = 10
 } = {}) {
-  const condiciones = [];
-  const params = [];
+  const condiciones = ['a.usuario_id = ?'];
+  const params = [usuarioId];
 
   if (clienteId) {
     condiciones.push('a.cliente_id = ?');
@@ -58,7 +59,7 @@ async function findAll({
     params.push(`${fechaFin} 23:59:59`);
   }
 
-  const where = condiciones.length ? `WHERE ${condiciones.join(' AND ')}` : '';
+  const where = `WHERE ${condiciones.join(' AND ')}`;
   const paginaActual = Math.max(1, page);
   const offset = (paginaActual - 1) * perPage;
 

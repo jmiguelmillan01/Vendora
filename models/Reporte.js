@@ -1,9 +1,9 @@
 const pool = require('../config/database');
 const Venta = require('./Venta');
 
-async function reporteVentas({ fechaInicio, fechaFin, clienteId = '', productoId = '', estado = '' }) {
-  const condiciones = ['v.fecha >= ?', 'v.fecha <= ?'];
-  const params = [fechaInicio, `${fechaFin} 23:59:59`];
+async function reporteVentas({ usuarioId, fechaInicio, fechaFin, clienteId = '', productoId = '', estado = '' }) {
+  const condiciones = ['v.usuario_id = ?', 'v.fecha >= ?', 'v.fecha <= ?'];
+  const params = [usuarioId, fechaInicio, `${fechaFin} 23:59:59`];
 
   if (estado) {
     condiciones.push('v.estado = ?');
@@ -50,7 +50,7 @@ async function reporteVentas({ fechaInicio, fechaFin, clienteId = '', productoId
   const saldosPorVenta = new Map();
 
   for (const idCliente of clientesConCredito) {
-    const saldos = await Venta.obtenerSaldosCliente(idCliente);
+    const saldos = await Venta.obtenerSaldosCliente(idCliente, usuarioId);
     saldos.forEach((saldo) => saldosPorVenta.set(saldo.id, saldo.montoPendiente));
   }
 
@@ -68,9 +68,9 @@ async function reporteVentas({ fechaInicio, fechaFin, clienteId = '', productoId
   };
 }
 
-async function reporteAbonos({ fechaInicio, fechaFin, clienteId = '', metodoPago = '' }) {
-  const condiciones = ['fecha >= ?', 'fecha <= ?'];
-  const params = [fechaInicio, `${fechaFin} 23:59:59`];
+async function reporteAbonos({ usuarioId, fechaInicio, fechaFin, clienteId = '', metodoPago = '' }) {
+  const condiciones = ['usuario_id = ?', 'fecha >= ?', 'fecha <= ?'];
+  const params = [usuarioId, fechaInicio, `${fechaFin} 23:59:59`];
 
   if (clienteId) {
     condiciones.push('cliente_id = ?');

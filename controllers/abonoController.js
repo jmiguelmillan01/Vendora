@@ -17,10 +17,11 @@ function parseFiltros(query) {
 
 async function index(req, res, next) {
   try {
+    const usuarioId = req.session.usuario.id;
     const filtros = parseFiltros(req.query);
-    const { abonos, total } = await Abono.findAll({ ...filtros, perPage: PER_PAGE });
+    const { abonos, total } = await Abono.findAll({ ...filtros, usuarioId, perPage: PER_PAGE });
     const totalPaginas = Math.max(1, Math.ceil(total / PER_PAGE));
-    const clientes = await Cliente.findActivos();
+    const clientes = await Cliente.findActivos(usuarioId);
 
     res.render('abonos/index', {
       titulo: 'Abonos',
@@ -38,7 +39,7 @@ async function index(req, res, next) {
 
 async function showCreateForm(req, res, next) {
   try {
-    const clientes = await Cliente.findActivosConSaldo();
+    const clientes = await Cliente.findActivosConSaldo(req.session.usuario.id);
     const clienteIdQuery = req.query.cliente_id ? parseInt(req.query.cliente_id, 10) : '';
 
     res.render('abonos/nueva', {
@@ -79,16 +80,17 @@ function validarAbono(body) {
 
 async function create(req, res, next) {
   try {
+    const usuarioId = req.session.usuario.id;
     const errores = validarAbono(req.body);
     const clienteId = parseInt(req.body.cliente_id, 10);
     const valor = Number(req.body.valor);
 
     if (!errores.length) {
-      const cliente = await Cliente.findById(clienteId);
+      const cliente = await Cliente.findById(clienteId, usuarioId);
       if (!cliente || !cliente.activo) {
         errores.push('El cliente seleccionado no existe o está inactivo.');
       } else {
-        const resumen = await Cliente.getResumenFinanciero(clienteId);
+        const resumen = await Cliente.getResumenFinanciero(clienteId, usuarioId);
         if (valor > resumen.saldo) {
           errores.push(`El abono no puede ser mayor al saldo pendiente (${formatMoney(resumen.saldo)}).`);
         }
@@ -96,7 +98,7 @@ async function create(req, res, next) {
     }
 
     if (errores.length) {
-      const clientes = await Cliente.findActivosConSaldo();
+      const clientes = await Cliente.findActivosConSaldo(usuarioId);
       return res.status(400).render('abonos/nueva', {
         titulo: 'Nuevo abono',
         activeNav: 'abonos',
@@ -107,6 +109,7 @@ async function create(req, res, next) {
     }
 
     await Abono.create({
+      usuarioId,
       clienteId,
       valor,
       metodoPago: req.body.metodo_pago,

@@ -7,6 +7,7 @@ function errorValidacion(mensaje) {
 }
 
 async function create({
+  usuarioId,
   clienteId,
   detalles,
   descuento = 0,
@@ -20,8 +21,8 @@ async function create({
     await connection.beginTransaction();
 
     const [[cliente]] = await connection.query(
-      'SELECT id FROM clientes WHERE id = ? AND activo = 1 LIMIT 1',
-      [clienteId]
+      'SELECT id FROM clientes WHERE id = ? AND usuario_id = ? AND activo = 1 LIMIT 1',
+      [clienteId, usuarioId]
     );
     if (!cliente) {
       throw errorValidacion('El cliente seleccionado no existe o está inactivo.');
@@ -29,8 +30,8 @@ async function create({
 
     const productoIds = detalles.map((d) => d.productoId);
     const [productos] = await connection.query(
-      `SELECT id, precio, activo FROM productos WHERE id IN (${productoIds.map(() => '?').join(',')})`,
-      productoIds
+      `SELECT id, precio, activo FROM productos WHERE usuario_id = ? AND id IN (${productoIds.map(() => '?').join(',')})`,
+      [usuarioId, ...productoIds]
     );
     const productosPorId = new Map(productos.map((p) => [p.id, p]));
 
@@ -75,9 +76,9 @@ async function create({
     }
 
     const [ventaResultado] = await connection.query(
-      `INSERT INTO ventas (cliente_id, subtotal, descuento, total, tipo_pago, estado, observaciones)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [clienteId, subtotal, descuento, total, tipoPago, estado, observaciones]
+      `INSERT INTO ventas (cliente_id, usuario_id, subtotal, descuento, total, tipo_pago, estado, observaciones)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [clienteId, usuarioId, subtotal, descuento, total, tipoPago, estado, observaciones]
     );
     const ventaId = ventaResultado.insertId;
 
@@ -97,9 +98,9 @@ async function create({
     // deuda de otras ventas a crédito del mismo cliente.
     if (tipoPago === 'PARCIAL') {
       await connection.query(
-        `INSERT INTO abonos (cliente_id, valor, metodo_pago, observacion)
-         VALUES (?, ?, ?, ?)`,
-        [clienteId, pagoInicial, metodoPago, `Pago inicial de la venta #${ventaId}`]
+        `INSERT INTO abonos (cliente_id, usuario_id, valor, metodo_pago, observacion)
+         VALUES (?, ?, ?, ?, ?)`,
+        [clienteId, usuarioId, pagoInicial, metodoPago, `Pago inicial de la venta #${ventaId}`]
       );
     }
 
@@ -145,25 +146,25 @@ function calcularAsignacionAbonos(ventasOrdenadas, totalAbonado) {
   });
 }
 
-async function obtenerVentasCreditoCliente(ejecutor, clienteId) {
+async function obtenerVentasCreditoCliente(ejecutor, clienteId, usuarioId) {
   const [rows] = await ejecutor.query(
     `SELECT id, total FROM ventas
-     WHERE cliente_id = ? AND tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'
+     WHERE cliente_id = ? AND usuario_id = ? AND tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'
      ORDER BY fecha ASC, id ASC`,
-    [clienteId]
+    [clienteId, usuarioId]
   );
   return rows;
 }
 
 // tipo_pago nunca cambia aquí (es el registro histórico de cómo se transó la
 // venta); solo estado se actualiza, como estado de pago vigente.
-async function reconciliarEstadosCliente(connection, clienteId) {
-  const ventasCredito = await obtenerVentasCreditoCliente(connection, clienteId);
+async function reconciliarEstadosCliente(connection, clienteId, usuarioId) {
+  const ventasCredito = await obtenerVentasCreditoCliente(connection, clienteId, usuarioId);
   if (ventasCredito.length === 0) return;
 
   const [[{ totalAbonado }]] = await connection.query(
-    'SELECT COALESCE(SUM(valor), 0) AS totalAbonado FROM abonos WHERE cliente_id = ?',
-    [clienteId]
+    'SELECT COALESCE(SUM(valor), 0) AS totalAbonado FROM abonos WHERE cliente_id = ? AND usuario_id = ?',
+    [clienteId, usuarioId]
   );
 
   const asignaciones = calcularAsignacionAbonos(ventasCredito, totalAbonado);
@@ -177,19 +178,20 @@ async function reconciliarEstadosCliente(connection, clienteId) {
 // el monto que realmente sigue pendiente de cada venta (no solo su estado),
 // para reportes que necesitan sumar lo pendiente real y no el total bruto de
 // las ventas PARCIAL/PENDIENTE.
-async function obtenerSaldosCliente(clienteId) {
-  const ventasCredito = await obtenerVentasCreditoCliente(pool, clienteId);
+async function obtenerSaldosCliente(clienteId, usuarioId) {
+  const ventasCredito = await obtenerVentasCreditoCliente(pool, clienteId, usuarioId);
   if (ventasCredito.length === 0) return [];
 
   const [[{ totalAbonado }]] = await pool.query(
-    'SELECT COALESCE(SUM(valor), 0) AS totalAbonado FROM abonos WHERE cliente_id = ?',
-    [clienteId]
+    'SELECT COALESCE(SUM(valor), 0) AS totalAbonado FROM abonos WHERE cliente_id = ? AND usuario_id = ?',
+    [clienteId, usuarioId]
   );
 
   return calcularAsignacionAbonos(ventasCredito, totalAbonado);
 }
 
 async function findAll({
+  usuarioId,
   clienteId = '',
   estado = '',
   fechaInicio = '',
@@ -198,8 +200,8 @@ async function findAll({
   page = 1,
   perPage = 10
 } = {}) {
-  const condiciones = [];
-  const params = [];
+  const condiciones = ['v.usuario_id = ?'];
+  const params = [usuarioId];
 
   if (clienteId) {
     condiciones.push('v.cliente_id = ?');
@@ -226,7 +228,7 @@ async function findAll({
     params.push(productoId);
   }
 
-  const where = condiciones.length ? `WHERE ${condiciones.join(' AND ')}` : '';
+  const where = `WHERE ${condiciones.join(' AND ')}`;
   const paginaActual = Math.max(1, page);
   const offset = (paginaActual - 1) * perPage;
 
@@ -248,26 +250,27 @@ async function findAll({
   return { ventas: rows, total };
 }
 
-async function findById(id) {
+async function findById(id, usuarioId) {
   const [rows] = await pool.query(
     `SELECT v.*, c.nombre AS cliente_nombre, c.telefono AS cliente_telefono
      FROM ventas v
      JOIN clientes c ON c.id = v.cliente_id
-     WHERE v.id = ?
+     WHERE v.id = ? AND v.usuario_id = ?
      LIMIT 1`,
-    [id]
+    [id, usuarioId]
   );
   return rows[0] || null;
 }
 
-async function findDetalles(ventaId) {
+async function findDetalles(ventaId, usuarioId) {
   const [rows] = await pool.query(
     `SELECT d.*, p.nombre AS producto_nombre, p.tipo AS producto_tipo
      FROM detalle_venta d
+     JOIN ventas v ON v.id = d.venta_id
      JOIN productos p ON p.id = d.producto_id
-     WHERE d.venta_id = ?
+     WHERE d.venta_id = ? AND v.usuario_id = ?
      ORDER BY d.id ASC`,
-    [ventaId]
+    [ventaId, usuarioId]
   );
   return rows;
 }

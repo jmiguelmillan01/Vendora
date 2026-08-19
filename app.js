@@ -3,7 +3,9 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
 
+const pool = require('./config/database');
 const { requireAuth } = require('./middleware/authMiddleware');
 const authRoutes = require('./routes/authRoutes');
 const clienteRoutes = require('./routes/clienteRoutes');
@@ -42,10 +44,21 @@ app.use(express.static(path.join(__dirname, 'public')));
 // actualice la dependencia, así que sí es seguro cachearlos por más tiempo.
 app.use('/vendor/chartjs', express.static(path.join(__dirname, 'node_modules/chart.js/dist'), { maxAge: unDiaEnMs * 30 }));
 
+// MemoryStore (el store por defecto de express-session) no está pensado para
+// producción: pierde todas las sesiones activas cada vez que el proceso
+// reinicia y no sirve si algún día corren varias instancias. Se reutiliza el
+// mismo pool de MySQL de la app (config/database.js) en vez de abrir una
+// conexión aparte; la tabla `sessions` la crea y mantiene la propia librería.
+const sessionStore = new MySQLStore({}, pool);
+sessionStore.on('error', (error) => {
+  console.error('Error en el session store de MySQL:', error.message);
+});
+
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: false,
+  store: sessionStore,
   cookie: {
     maxAge: 1000 * 60 * 60 * 8,
     httpOnly: true,

@@ -13,6 +13,7 @@ function hoyISO() {
 
 async function index(req, res, next) {
   try {
+    const usuarioId = req.session.usuario.id;
     const fechaInicio = (req.query.fechaInicio || '').trim() || primerDiaMesISO();
     const fechaFin = (req.query.fechaFin || '').trim() || hoyISO();
 
@@ -28,16 +29,16 @@ async function index(req, res, next) {
       abonosPorPeriodo,
       productosMasVendidos
     ] = await Promise.all([
-      Dashboard.getIndicadoresVentasAbonos(),
-      Cliente.getResumenGlobal(),
-      Dashboard.getVentasRecientes(5),
-      Dashboard.getAbonosRecientes(5),
-      Cliente.findMayorDeuda(5),
-      Dashboard.getVentasPorDia({ fechaInicio, fechaFin }),
-      Dashboard.getVentasPorMes(6),
-      Dashboard.getCreditosPorPeriodo({ fechaInicio, fechaFin }),
-      Dashboard.getAbonosPorPeriodo({ fechaInicio, fechaFin }),
-      Producto.findMasVendidos({ fechaInicio, fechaFin, limit: 5 })
+      Dashboard.getIndicadoresVentasAbonos(usuarioId),
+      Cliente.getResumenGlobal(usuarioId),
+      Dashboard.getVentasRecientes(usuarioId, 5),
+      Dashboard.getAbonosRecientes(usuarioId, 5),
+      Cliente.findMayorDeuda(usuarioId, 5),
+      Dashboard.getVentasPorDia({ usuarioId, fechaInicio, fechaFin }),
+      Dashboard.getVentasPorMes(usuarioId, 6),
+      Dashboard.getCreditosPorPeriodo({ usuarioId, fechaInicio, fechaFin }),
+      Dashboard.getAbonosPorPeriodo({ usuarioId, fechaInicio, fechaFin }),
+      Producto.findMasVendidos({ usuarioId, fechaInicio, fechaFin, limit: 5 })
     ]);
 
     res.render('dashboard/index', {

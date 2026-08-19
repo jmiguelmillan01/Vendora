@@ -28,4 +28,12 @@ async function updatePassword(id, passwordHash) {
   await pool.query('UPDATE usuarios SET password = ? WHERE id = ?', [passwordHash, id]);
 }
 
-module.exports = { findByEmail, findById, findByIdConPassword, updatePassword };
+async function create({ nombre, email, passwordHash, rol = 'admin' }) {
+  const [resultado] = await pool.query(
+    'INSERT INTO usuarios (nombre, email, password, rol) VALUES (?, ?, ?, ?)',
+    [nombre, email, passwordHash, rol]
+  );
+  return resultado.insertId;
+}
+
+module.exports = { findByEmail, findById, findByIdConPassword, updatePassword, create };

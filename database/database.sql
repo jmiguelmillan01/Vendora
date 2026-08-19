@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS usuarios (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS clientes (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT UNSIGNED NOT NULL,
   nombre VARCHAR(150) NOT NULL,
   telefono VARCHAR(30) NULL,
   email VARCHAR(150) NULL,
@@ -39,7 +40,11 @@ CREATE TABLE IF NOT EXISTS clientes (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_clientes_nombre (nombre),
-  KEY idx_clientes_activo (activo)
+  KEY idx_clientes_activo (activo),
+  KEY idx_clientes_usuario (usuario_id),
+  KEY idx_clientes_usuario_activo (usuario_id, activo),
+  CONSTRAINT fk_clientes_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuarios(id) ON DELETE RESTRICT ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------
@@ -47,6 +52,7 @@ CREATE TABLE IF NOT EXISTS clientes (
 -- ------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS productos (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT UNSIGNED NOT NULL,
   nombre VARCHAR(150) NOT NULL,
   descripcion TEXT NULL,
   tipo ENUM('producto', 'servicio') NOT NULL DEFAULT 'producto',
@@ -56,6 +62,10 @@ CREATE TABLE IF NOT EXISTS productos (
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   KEY idx_productos_nombre (nombre),
   KEY idx_productos_activo (activo),
+  KEY idx_productos_usuario (usuario_id),
+  KEY idx_productos_usuario_activo (usuario_id, activo),
+  CONSTRAINT fk_productos_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuarios(id) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT chk_productos_precio CHECK (precio >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -65,6 +75,7 @@ CREATE TABLE IF NOT EXISTS productos (
 CREATE TABLE IF NOT EXISTS ventas (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   cliente_id INT UNSIGNED NOT NULL,
+  usuario_id INT UNSIGNED NOT NULL,
   fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   subtotal DECIMAL(12,2) NOT NULL DEFAULT 0,
   descuento DECIMAL(12,2) NOT NULL DEFAULT 0,
@@ -77,8 +88,13 @@ CREATE TABLE IF NOT EXISTS ventas (
   KEY idx_ventas_cliente (cliente_id),
   KEY idx_ventas_fecha (fecha),
   KEY idx_ventas_estado (estado),
+  KEY idx_ventas_usuario (usuario_id),
+  KEY idx_ventas_usuario_fecha (usuario_id, fecha),
+  KEY idx_ventas_usuario_estado (usuario_id, estado),
   CONSTRAINT fk_ventas_cliente FOREIGN KEY (cliente_id)
     REFERENCES clientes(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_ventas_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuarios(id) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT chk_ventas_totales CHECK (subtotal >= 0 AND descuento >= 0 AND total >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -109,6 +125,7 @@ CREATE TABLE IF NOT EXISTS detalle_venta (
 CREATE TABLE IF NOT EXISTS abonos (
   id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   cliente_id INT UNSIGNED NOT NULL,
+  usuario_id INT UNSIGNED NOT NULL,
   fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   valor DECIMAL(12,2) NOT NULL,
   metodo_pago ENUM('EFECTIVO', 'TRANSFERENCIA', 'OTRO') NOT NULL DEFAULT 'EFECTIVO',
@@ -116,9 +133,29 @@ CREATE TABLE IF NOT EXISTS abonos (
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_abonos_cliente (cliente_id),
   KEY idx_abonos_fecha (fecha),
+  KEY idx_abonos_usuario (usuario_id),
+  KEY idx_abonos_usuario_fecha (usuario_id, fecha),
   CONSTRAINT fk_abonos_cliente FOREIGN KEY (cliente_id)
     REFERENCES clientes(id) ON DELETE RESTRICT ON UPDATE CASCADE,
+  CONSTRAINT fk_abonos_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuarios(id) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT chk_abonos_valor CHECK (valor > 0)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ------------------------------------------------------------
+-- Tabla: password_resets
+-- ------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS password_resets (
+  id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  usuario_id INT UNSIGNED NOT NULL,
+  token_hash CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_password_resets_token_hash (token_hash),
+  KEY idx_password_resets_usuario (usuario_id),
+  CONSTRAINT fk_password_resets_usuario FOREIGN KEY (usuario_id)
+    REFERENCES usuarios(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ------------------------------------------------------------

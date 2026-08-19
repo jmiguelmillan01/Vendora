@@ -7,6 +7,7 @@ const COLUMNAS_ORDEN = {
 };
 
 async function findAll({
+  usuarioId,
   search = '',
   tipo = '',
   activo = '',
@@ -15,8 +16,8 @@ async function findAll({
   orderBy = 'nombre',
   orderDir = 'ASC'
 } = {}) {
-  const condiciones = [];
-  const params = [];
+  const condiciones = ['usuario_id = ?'];
+  const params = [usuarioId];
 
   if (search) {
     condiciones.push('(nombre LIKE ? OR descripcion LIKE ?)');
@@ -34,7 +35,7 @@ async function findAll({
     params.push(activo);
   }
 
-  const where = condiciones.length ? `WHERE ${condiciones.join(' AND ')}` : '';
+  const where = `WHERE ${condiciones.join(' AND ')}`;
   const columnaOrden = COLUMNAS_ORDEN[orderBy] || COLUMNAS_ORDEN.nombre;
   const direccion = orderDir === 'DESC' ? 'DESC' : 'ASC';
   const paginaActual = Math.max(1, page);
@@ -56,27 +57,32 @@ async function findAll({
   return { productos: rows, total };
 }
 
-async function findById(id) {
-  const [rows] = await pool.query('SELECT * FROM productos WHERE id = ? LIMIT 1', [id]);
+async function findById(id, usuarioId) {
+  const [rows] = await pool.query(
+    'SELECT * FROM productos WHERE id = ? AND usuario_id = ? LIMIT 1',
+    [id, usuarioId]
+  );
   return rows[0] || null;
 }
 
-async function findActivos() {
+async function findActivos(usuarioId) {
   const [rows] = await pool.query(
-    'SELECT id, nombre, tipo, precio FROM productos WHERE activo = 1 ORDER BY nombre ASC'
+    'SELECT id, nombre, tipo, precio FROM productos WHERE usuario_id = ? AND activo = 1 ORDER BY nombre ASC',
+    [usuarioId]
   );
   return rows;
 }
 
 async function findMasVendidos({
+  usuarioId,
   fechaInicio = '',
   fechaFin = '',
   productoId = '',
   estado = '',
   limit = 5
 } = {}) {
-  const condiciones = [];
-  const params = [];
+  const condiciones = ['v.usuario_id = ?'];
+  const params = [usuarioId];
 
   if (estado) {
     condiciones.push('v.estado = ?');
@@ -116,28 +122,31 @@ async function findMasVendidos({
   return rows;
 }
 
-async function create(datos) {
+async function create(datos, usuarioId) {
   const { nombre, descripcion, tipo, precio } = datos;
   const [resultado] = await pool.query(
-    `INSERT INTO productos (nombre, descripcion, tipo, precio)
-     VALUES (?, ?, ?, ?)`,
-    [nombre, descripcion || null, tipo, precio]
+    `INSERT INTO productos (usuario_id, nombre, descripcion, tipo, precio)
+     VALUES (?, ?, ?, ?, ?)`,
+    [usuarioId, nombre, descripcion || null, tipo, precio]
   );
   return resultado.insertId;
 }
 
-async function update(id, datos) {
+async function update(id, datos, usuarioId) {
   const { nombre, descripcion, tipo, precio } = datos;
   await pool.query(
     `UPDATE productos
      SET nombre = ?, descripcion = ?, tipo = ?, precio = ?
-     WHERE id = ?`,
-    [nombre, descripcion || null, tipo, precio, id]
+     WHERE id = ? AND usuario_id = ?`,
+    [nombre, descripcion || null, tipo, precio, id, usuarioId]
   );
 }
 
-async function setActivo(id, activo) {
-  await pool.query('UPDATE productos SET activo = ? WHERE id = ?', [activo ? 1 : 0, id]);
+async function setActivo(id, activo, usuarioId) {
+  await pool.query(
+    'UPDATE productos SET activo = ? WHERE id = ? AND usuario_id = ?',
+    [activo ? 1 : 0, id, usuarioId]
+  );
 }
 
 module.exports = {

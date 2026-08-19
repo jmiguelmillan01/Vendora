@@ -49,8 +49,9 @@ function datosProductoDesdeBody(body) {
 
 async function index(req, res, next) {
   try {
+    const usuarioId = req.session.usuario.id;
     const filtros = parseFiltros(req.query);
-    const { productos, total } = await Producto.findAll({ ...filtros, perPage: PER_PAGE });
+    const { productos, total } = await Producto.findAll({ ...filtros, usuarioId, perPage: PER_PAGE });
     const totalPaginas = Math.max(1, Math.ceil(total / PER_PAGE));
 
     res.render('productos/index', {
@@ -90,7 +91,7 @@ async function create(req, res, next) {
       });
     }
 
-    await Producto.create(datosProductoDesdeBody(req.body));
+    await Producto.create(datosProductoDesdeBody(req.body), req.session.usuario.id);
 
     req.session.flash = { type: 'success', message: 'Producto/servicio creado correctamente.' };
     res.redirect('/productos');
@@ -101,7 +102,7 @@ async function create(req, res, next) {
 
 async function showEditForm(req, res, next) {
   try {
-    const producto = await Producto.findById(req.params.id);
+    const producto = await Producto.findById(req.params.id, req.session.usuario.id);
     if (!producto) {
       return res.status(404).render('404', { titulo: 'Producto no encontrado' });
     }
@@ -120,7 +121,8 @@ async function showEditForm(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const producto = await Producto.findById(req.params.id);
+    const usuarioId = req.session.usuario.id;
+    const producto = await Producto.findById(req.params.id, usuarioId);
     if (!producto) {
       return res.status(404).render('404', { titulo: 'Producto no encontrado' });
     }
@@ -137,7 +139,7 @@ async function update(req, res, next) {
       });
     }
 
-    await Producto.update(req.params.id, datosProductoDesdeBody(req.body));
+    await Producto.update(req.params.id, datosProductoDesdeBody(req.body), usuarioId);
 
     req.session.flash = { type: 'success', message: 'Producto/servicio actualizado correctamente.' };
     res.redirect('/productos');
@@ -148,12 +150,13 @@ async function update(req, res, next) {
 
 async function toggleActivo(req, res, next) {
   try {
-    const producto = await Producto.findById(req.params.id);
+    const usuarioId = req.session.usuario.id;
+    const producto = await Producto.findById(req.params.id, usuarioId);
     if (!producto) {
       return res.status(404).render('404', { titulo: 'Producto no encontrado' });
     }
 
-    await Producto.setActivo(req.params.id, !producto.activo);
+    await Producto.setActivo(req.params.id, !producto.activo, usuarioId);
 
     req.session.flash = {
       type: 'success',

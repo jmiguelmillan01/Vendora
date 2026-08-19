@@ -63,8 +63,9 @@ function datosClienteDesdeBody(body) {
 
 async function index(req, res, next) {
   try {
+    const usuarioId = req.session.usuario.id;
     const filtros = parseFiltros(req.query);
-    const { clientes, total } = await Cliente.findAll({ ...filtros, perPage: PER_PAGE });
+    const { clientes, total } = await Cliente.findAll({ ...filtros, usuarioId, perPage: PER_PAGE });
     const totalPaginas = Math.max(1, Math.ceil(total / PER_PAGE));
 
     res.render('clientes/index', {
@@ -104,7 +105,7 @@ async function create(req, res, next) {
       });
     }
 
-    await Cliente.create(datosClienteDesdeBody(req.body));
+    await Cliente.create(datosClienteDesdeBody(req.body), req.session.usuario.id);
 
     req.session.flash = { type: 'success', message: 'Cliente creado correctamente.' };
     res.redirect('/clientes');
@@ -115,7 +116,7 @@ async function create(req, res, next) {
 
 async function showEditForm(req, res, next) {
   try {
-    const cliente = await Cliente.findById(req.params.id);
+    const cliente = await Cliente.findById(req.params.id, req.session.usuario.id);
     if (!cliente) {
       return res.status(404).render('404', { titulo: 'Cliente no encontrado' });
     }
@@ -134,7 +135,8 @@ async function showEditForm(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const cliente = await Cliente.findById(req.params.id);
+    const usuarioId = req.session.usuario.id;
+    const cliente = await Cliente.findById(req.params.id, usuarioId);
     if (!cliente) {
       return res.status(404).render('404', { titulo: 'Cliente no encontrado' });
     }
@@ -151,7 +153,7 @@ async function update(req, res, next) {
       });
     }
 
-    await Cliente.update(req.params.id, datosClienteDesdeBody(req.body));
+    await Cliente.update(req.params.id, datosClienteDesdeBody(req.body), usuarioId);
 
     req.session.flash = { type: 'success', message: 'Cliente actualizado correctamente.' };
     res.redirect(`/clientes/${req.params.id}`);
@@ -162,12 +164,13 @@ async function update(req, res, next) {
 
 async function toggleActivo(req, res, next) {
   try {
-    const cliente = await Cliente.findById(req.params.id);
+    const usuarioId = req.session.usuario.id;
+    const cliente = await Cliente.findById(req.params.id, usuarioId);
     if (!cliente) {
       return res.status(404).render('404', { titulo: 'Cliente no encontrado' });
     }
 
-    await Cliente.setActivo(req.params.id, !cliente.activo);
+    await Cliente.setActivo(req.params.id, !cliente.activo, usuarioId);
 
     req.session.flash = {
       type: 'success',
@@ -181,7 +184,8 @@ async function toggleActivo(req, res, next) {
 
 async function show(req, res, next) {
   try {
-    const cliente = await Cliente.findById(req.params.id);
+    const usuarioId = req.session.usuario.id;
+    const cliente = await Cliente.findById(req.params.id, usuarioId);
     if (!cliente) {
       return res.status(404).render('404', { titulo: 'Cliente no encontrado' });
     }
@@ -190,8 +194,8 @@ async function show(req, res, next) {
     const fechaFin = (req.query.fechaFin || '').trim();
 
     const [resumen, historial] = await Promise.all([
-      Cliente.getResumenFinanciero(req.params.id),
-      Cliente.getHistorial(req.params.id, { fechaInicio, fechaFin })
+      Cliente.getResumenFinanciero(req.params.id, usuarioId),
+      Cliente.getHistorial(req.params.id, usuarioId, { fechaInicio, fechaFin })
     ]);
 
     res.render('clientes/show', {

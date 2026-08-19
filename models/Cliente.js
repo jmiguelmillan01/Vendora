@@ -6,6 +6,10 @@ const COLUMNAS_ORDEN = {
   saldo: 'saldo'
 };
 
+// ventas.cliente_id / abonos.cliente_id solo pueden apuntar a un cliente del
+// mismo tenant (Venta.create y el controlador de abonos verifican la
+// pertenencia del cliente antes de insertar), así que este JOIN no necesita
+// filtrar usuario_id por dentro: basta con filtrar la tabla c externa.
 const SALDO_JOIN = `
   LEFT JOIN (
     SELECT cliente_id, SUM(total) AS total_credito
@@ -22,6 +26,7 @@ const SALDO_JOIN = `
 const SALDO_EXPR = 'COALESCE(v.total_credito, 0) - COALESCE(a.total_abonado, 0) AS saldo';
 
 async function findAll({
+  usuarioId,
   search = '',
   activo = '',
   page = 1,
@@ -29,8 +34,8 @@ async function findAll({
   orderBy = 'nombre',
   orderDir = 'ASC'
 } = {}) {
-  const condiciones = [];
-  const params = [];
+  const condiciones = ['c.usuario_id = ?'];
+  const params = [usuarioId];
 
   if (search) {
     condiciones.push('(c.nombre LIKE ? OR c.telefono LIKE ? OR c.email LIKE ? OR c.documento LIKE ?)');
@@ -43,7 +48,7 @@ async function findAll({
     params.push(activo);
   }
 
-  const where = condiciones.length ? `WHERE ${condiciones.join(' AND ')}` : '';
+  const where = `WHERE ${condiciones.join(' AND ')}`;
   const columnaOrden = COLUMNAS_ORDEN[orderBy] || COLUMNAS_ORDEN.nombre;
   const direccion = orderDir === 'DESC' ? 'DESC' : 'ASC';
   const paginaActual = Math.max(1, page);
@@ -67,61 +72,69 @@ async function findAll({
   return { clientes: rows, total };
 }
 
-async function findById(id) {
-  const [rows] = await pool.query('SELECT * FROM clientes WHERE id = ? LIMIT 1', [id]);
+async function findById(id, usuarioId) {
+  const [rows] = await pool.query(
+    'SELECT * FROM clientes WHERE id = ? AND usuario_id = ? LIMIT 1',
+    [id, usuarioId]
+  );
   return rows[0] || null;
 }
 
-async function findActivos() {
+async function findActivos(usuarioId) {
   const [rows] = await pool.query(
-    'SELECT id, nombre, telefono FROM clientes WHERE activo = 1 ORDER BY nombre ASC'
+    'SELECT id, nombre, telefono FROM clientes WHERE usuario_id = ? AND activo = 1 ORDER BY nombre ASC',
+    [usuarioId]
   );
   return rows;
 }
 
-async function findActivosConSaldo() {
+async function findActivosConSaldo(usuarioId) {
   const [rows] = await pool.query(
     `SELECT c.id, c.nombre, c.telefono, ${SALDO_EXPR}
      FROM clientes c
      ${SALDO_JOIN}
-     WHERE c.activo = 1
-     ORDER BY c.nombre ASC`
+     WHERE c.usuario_id = ? AND c.activo = 1
+     ORDER BY c.nombre ASC`,
+    [usuarioId]
   );
   return rows;
 }
 
-async function create(datos) {
+async function create(datos, usuarioId) {
   const { nombre, telefono, email, direccion, documento, observaciones } = datos;
   const [resultado] = await pool.query(
-    `INSERT INTO clientes (nombre, telefono, email, direccion, documento, observaciones)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [nombre, telefono || null, email || null, direccion || null, documento || null, observaciones || null]
+    `INSERT INTO clientes (usuario_id, nombre, telefono, email, direccion, documento, observaciones)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [usuarioId, nombre, telefono || null, email || null, direccion || null, documento || null, observaciones || null]
   );
   return resultado.insertId;
 }
 
-async function update(id, datos) {
+async function update(id, datos, usuarioId) {
   const { nombre, telefono, email, direccion, documento, observaciones } = datos;
   await pool.query(
     `UPDATE clientes
      SET nombre = ?, telefono = ?, email = ?, direccion = ?, documento = ?, observaciones = ?
-     WHERE id = ?`,
-    [nombre, telefono || null, email || null, direccion || null, documento || null, observaciones || null, id]
+     WHERE id = ? AND usuario_id = ?`,
+    [nombre, telefono || null, email || null, direccion || null, documento || null, observaciones || null, id, usuarioId]
   );
 }
 
-async function setActivo(id, activo) {
-  await pool.query('UPDATE clientes SET activo = ? WHERE id = ?', [activo ? 1 : 0, id]);
+async function setActivo(id, activo, usuarioId) {
+  await pool.query(
+    'UPDATE clientes SET activo = ? WHERE id = ? AND usuario_id = ?',
+    [activo ? 1 : 0, id, usuarioId]
+  );
 }
 
-async function getResumenFinanciero(clienteId) {
+async function getResumenFinanciero(clienteId, usuarioId) {
   const [[resumen]] = await pool.query(
     `SELECT
-        COALESCE((SELECT SUM(total) FROM ventas WHERE cliente_id = ? AND tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'), 0) AS total_credito,
-        COALESCE((SELECT SUM(valor) FROM abonos WHERE cliente_id = ?), 0) AS total_abonado,
-        (SELECT MAX(fecha) FROM ventas WHERE cliente_id = ? AND estado != 'ANULADA') AS fecha_ultima_compra,
-        (SELECT MAX(fecha) FROM abonos WHERE cliente_id = ?) AS fecha_ultimo_abono`,
-    [clienteId, clienteId, clienteId, clienteId]
+        COALESCE((SELECT SUM(total) FROM ventas WHERE cliente_id = ? AND usuario_id = ? AND tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'), 0) AS total_credito,
+        COALESCE((SELECT SUM(valor) FROM abonos WHERE cliente_id = ? AND usuario_id = ?), 0) AS total_abonado,
+        (SELECT MAX(fecha) FROM ventas WHERE cliente_id = ? AND usuario_id = ? AND estado != 'ANULADA') AS fecha_ultima_compra,
+        (SELECT MAX(fecha) FROM abonos WHERE cliente_id = ? AND usuario_id = ?) AS fecha_ultimo_abono`,
+    [clienteId, usuarioId, clienteId, usuarioId, clienteId, usuarioId, clienteId, usuarioId]
   );
 
   const totalCredito = Number(resumen.total_credito);
@@ -136,7 +149,7 @@ async function getResumenFinanciero(clienteId) {
   };
 }
 
-async function getResumenGlobal() {
+async function getResumenGlobal(usuarioId) {
   const [[fila]] = await pool.query(
     `SELECT
         COALESCE(SUM(GREATEST(saldo, 0)), 0) AS total_pendiente,
@@ -146,8 +159,9 @@ async function getResumenGlobal() {
        SELECT ${SALDO_EXPR}
        FROM clientes c
        ${SALDO_JOIN}
-       WHERE c.activo = 1
-     ) saldos`
+       WHERE c.usuario_id = ? AND c.activo = 1
+     ) saldos`,
+    [usuarioId]
   );
 
   return {
@@ -157,43 +171,43 @@ async function getResumenGlobal() {
   };
 }
 
-async function findMayorDeuda(limit = 5) {
+async function findMayorDeuda(usuarioId, limit = 5) {
   const [rows] = await pool.query(
     `SELECT c.id, c.nombre, ${SALDO_EXPR}
      FROM clientes c
      ${SALDO_JOIN}
-     WHERE c.activo = 1
+     WHERE c.usuario_id = ? AND c.activo = 1
      HAVING saldo > 0
      ORDER BY saldo DESC
      LIMIT ?`,
-    [Number(limit)]
+    [usuarioId, Number(limit)]
   );
   return rows;
 }
 
-async function findAntiguedadDeuda(limit = 10) {
+async function findAntiguedadDeuda(usuarioId, limit = 10) {
   const [rows] = await pool.query(
     `SELECT c.id, c.nombre, ${SALDO_EXPR},
         DATEDIFF(CURDATE(), (
           SELECT MIN(fecha) FROM ventas
-          WHERE cliente_id = c.id AND tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'
+          WHERE cliente_id = c.id AND usuario_id = ? AND tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'
         )) AS dias_antiguedad
      FROM clientes c
      ${SALDO_JOIN}
-     WHERE c.activo = 1
+     WHERE c.usuario_id = ? AND c.activo = 1
      HAVING saldo > 0
      ORDER BY dias_antiguedad DESC
      LIMIT ?`,
-    [Number(limit)]
+    [usuarioId, usuarioId, Number(limit)]
   );
   return rows;
 }
 
-async function getHistorial(clienteId, { fechaInicio = '', fechaFin = '' } = {}) {
-  const condicionesVenta = ['cliente_id = ?', "estado != 'ANULADA'"];
-  const condicionesAbono = ['cliente_id = ?'];
-  const paramsVenta = [clienteId];
-  const paramsAbono = [clienteId];
+async function getHistorial(clienteId, usuarioId, { fechaInicio = '', fechaFin = '' } = {}) {
+  const condicionesVenta = ['cliente_id = ?', 'usuario_id = ?', "estado != 'ANULADA'"];
+  const condicionesAbono = ['cliente_id = ?', 'usuario_id = ?'];
+  const paramsVenta = [clienteId, usuarioId];
+  const paramsAbono = [clienteId, usuarioId];
 
   if (fechaInicio) {
     condicionesVenta.push('fecha >= ?');

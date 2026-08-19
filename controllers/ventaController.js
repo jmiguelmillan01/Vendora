@@ -61,10 +61,11 @@ function validarVenta(body, detalles) {
 
 async function index(req, res, next) {
   try {
+    const usuarioId = req.session.usuario.id;
     const filtros = parseFiltros(req.query);
-    const { ventas, total } = await Venta.findAll({ ...filtros, perPage: PER_PAGE });
+    const { ventas, total } = await Venta.findAll({ ...filtros, usuarioId, perPage: PER_PAGE });
     const totalPaginas = Math.max(1, Math.ceil(total / PER_PAGE));
-    const clientes = await Cliente.findActivos();
+    const clientes = await Cliente.findActivos(usuarioId);
 
     res.render('ventas/index', {
       titulo: 'Ventas',
@@ -82,9 +83,10 @@ async function index(req, res, next) {
 
 async function showCreateForm(req, res, next) {
   try {
+    const usuarioId = req.session.usuario.id;
     const [clientes, productos] = await Promise.all([
-      Cliente.findActivos(),
-      Producto.findActivos()
+      Cliente.findActivos(usuarioId),
+      Producto.findActivos(usuarioId)
     ]);
 
     res.render('ventas/nueva', {
@@ -101,12 +103,13 @@ async function showCreateForm(req, res, next) {
 }
 
 async function create(req, res, next) {
+  const usuarioId = req.session.usuario.id;
   try {
     const detalles = normalizarDetalles(req.body);
     const errores = validarVenta(req.body, detalles);
 
     if (errores.length) {
-      const [clientes, productos] = await Promise.all([Cliente.findActivos(), Producto.findActivos()]);
+      const [clientes, productos] = await Promise.all([Cliente.findActivos(usuarioId), Producto.findActivos(usuarioId)]);
       return res.status(400).render('ventas/nueva', {
         titulo: 'Nueva venta',
         activeNav: 'ventas',
@@ -120,6 +123,7 @@ async function create(req, res, next) {
     const pagoInicial = Number(req.body.pago_inicial || 0);
 
     const ventaId = await Venta.create({
+      usuarioId,
       clienteId: parseInt(req.body.cliente_id, 10),
       detalles,
       descuento: Number(req.body.descuento || 0),
@@ -132,7 +136,7 @@ async function create(req, res, next) {
     res.redirect(`/ventas/${ventaId}`);
   } catch (error) {
     if (error.validacion) {
-      const [clientes, productos] = await Promise.all([Cliente.findActivos(), Producto.findActivos()]);
+      const [clientes, productos] = await Promise.all([Cliente.findActivos(usuarioId), Producto.findActivos(usuarioId)]);
       return res.status(400).render('ventas/nueva', {
         titulo: 'Nueva venta',
         activeNav: 'ventas',
@@ -148,12 +152,13 @@ async function create(req, res, next) {
 
 async function show(req, res, next) {
   try {
-    const venta = await Venta.findById(req.params.id);
+    const usuarioId = req.session.usuario.id;
+    const venta = await Venta.findById(req.params.id, usuarioId);
     if (!venta) {
       return res.status(404).render('404', { titulo: 'Venta no encontrada' });
     }
 
-    const detalles = await Venta.findDetalles(req.params.id);
+    const detalles = await Venta.findDetalles(req.params.id, usuarioId);
 
     res.render('ventas/show', {
       titulo: `Venta #${venta.id}`,

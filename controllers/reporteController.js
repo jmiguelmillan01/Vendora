@@ -18,6 +18,7 @@ function categorizarAntiguedad(dias) {
 
 async function index(req, res, next) {
   try {
+    const usuarioId = req.session.usuario.id;
     const tipo = TIPOS_VALIDOS.includes(req.query.tipo) ? req.query.tipo : 'ventas';
     const rango = resolveDateRange(req.query);
     const clienteId = req.query.cliente_id ? parseInt(req.query.cliente_id, 10) : '';
@@ -26,8 +27,8 @@ async function index(req, res, next) {
     const metodoPago = METODOS_PAGO_VALIDOS.includes(req.query.metodo_pago) ? req.query.metodo_pago : '';
 
     const [clientes, productos] = await Promise.all([
-      Cliente.findActivos(),
-      Producto.findActivos()
+      Cliente.findActivos(usuarioId),
+      Producto.findActivos(usuarioId)
     ]);
 
     const filtros = { ...rango, clienteId, productoId, estado, metodoPago };
@@ -37,6 +38,7 @@ async function index(req, res, next) {
     if (tipo === 'ventas') {
       const [resumen, listado] = await Promise.all([
         Reporte.reporteVentas({
+          usuarioId,
           fechaInicio: rango.fechaInicio,
           fechaFin: rango.fechaFin,
           clienteId,
@@ -44,6 +46,7 @@ async function index(req, res, next) {
           estado
         }),
         Venta.findAll({
+          usuarioId,
           clienteId,
           estado,
           productoId,
@@ -56,12 +59,14 @@ async function index(req, res, next) {
     } else if (tipo === 'abonos') {
       const [resumen, listado] = await Promise.all([
         Reporte.reporteAbonos({
+          usuarioId,
           fechaInicio: rango.fechaInicio,
           fechaFin: rango.fechaFin,
           clienteId,
           metodoPago
         }),
         Abono.findAll({
+          usuarioId,
           clienteId,
           metodoPago,
           fechaInicio: rango.fechaInicio,
@@ -72,9 +77,9 @@ async function index(req, res, next) {
       datos = { resumen, abonos: listado.abonos, totalCoincidencias: listado.total };
     } else if (tipo === 'clientes') {
       const [resumenGlobal, mayorSaldo, deudaAntigua] = await Promise.all([
-        Cliente.getResumenGlobal(),
-        Cliente.findMayorDeuda(10),
-        Cliente.findAntiguedadDeuda(10)
+        Cliente.getResumenGlobal(usuarioId),
+        Cliente.findMayorDeuda(usuarioId, 10),
+        Cliente.findAntiguedadDeuda(usuarioId, 10)
       ]);
       datos = {
         resumen: {
@@ -90,6 +95,7 @@ async function index(req, res, next) {
       };
     } else if (tipo === 'productos') {
       const productosMasVendidos = await Producto.findMasVendidos({
+        usuarioId,
         fechaInicio: rango.fechaInicio,
         fechaFin: rango.fechaFin,
         productoId,

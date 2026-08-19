@@ -1,13 +1,13 @@
 -- ============================================================
 -- Sistema de ventas, cuentas por cobrar y fiados
--- Script de creación de base de datos (Fase 2)
+-- Script de creación de tablas (Fase 2)
 -- ============================================================
-
-CREATE DATABASE IF NOT EXISTS sistema_ventas
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE sistema_ventas;
+-- Este archivo NO crea ni selecciona una base de datos por nombre fijo:
+-- database/init.js se encarga de crear la base indicada en DB_NAME (si no
+-- existe) y de conectarse ya posicionado en ella antes de correr esto. Así
+-- el mismo script sirve tanto para una base local llamada "sistema_ventas"
+-- como para una ya provista por un hosting (ej. "railway" en Railway),
+-- sin tener que editar nada aquí.
 
 -- ------------------------------------------------------------
 -- Tabla: usuarios

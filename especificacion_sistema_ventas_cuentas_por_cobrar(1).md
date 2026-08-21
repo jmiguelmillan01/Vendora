@@ -1455,3 +1455,72 @@ El resultado debe ser una aplicación web que permita a un pequeño negocio sabe
 La aplicación debe priorizar la **simplicidad para el usuario**, la **consistencia de los datos financieros**, la **seguridad**, una **experiencia responsive y mobile-first** y la **posibilidad de ampliar el sistema posteriormente**.
 
 La interfaz debe ofrecer una experiencia equivalente y usable en celulares, tablets y computadores, sin limitar funcionalidades importantes por el tamaño de pantalla.
+
+---
+
+# 43. Estado real de la implementación (Vendora)
+
+Esta sección documenta cómo quedó construido el sistema realmente, incluyendo lo que se agregó más allá de esta especificación original y los ajustes que se hicieron sobre la marcha. Las secciones 1 a 42 de arriba quedan como el documento de diseño original; esta sección es el registro de lo que se construyó de verdad.
+
+## 43.1 Las 10 fases originales
+
+Las Fases 1 a 10 descritas en la sección 39 se completaron y probaron todas contra una base de datos real:
+
+1. Configuración del proyecto (Express, EJS, Tailwind CSS, MySQL, estructura de carpetas).
+2. Base de datos (`database/database.sql`, relaciones, índices).
+3. Autenticación (login/logout con `express-session` y `bcryptjs`).
+4. Clientes (CRUD, búsqueda, estado de cuenta).
+5. Productos/servicios (CRUD, precios, activar/desactivar).
+6. Ventas (registro transaccional, precio histórico congelado, contado/crédito/parcial).
+7. Abonos (registro, validación contra saldo pendiente).
+8. Dashboard (indicadores, listas, 5 gráficos con Chart.js).
+9. Reportes (4 reportes con presets de fecha y filtros).
+10. Mejoras finales (responsive, validaciones, cabeceras de seguridad, caché) + Configuración básica (cambiar contraseña).
+
+## 43.2 Cambios de arquitectura agregados después de la Fase 10
+
+A pedido explícito del usuario, el sistema pasó de ser de un solo negocio a **multi-tenant**, y se agregaron dos funciones que la sección 6 marcaba como "posteriormente":
+
+### Multi-tenant (cada cuenta es su propio negocio)
+
+- Se agregó la columna `usuario_id` a `clientes`, `productos`, `ventas` y `abonos` (con clave foránea a `usuarios`). `detalle_venta` no necesitó columna propia: queda aislada porque tanto `venta_id` como `producto_id` ya pertenecen a un único tenant.
+- Los ~30 métodos de los 6 modelos de negocio (`Cliente`, `Producto`, `Venta`, `Abono`, `Dashboard`, `Reporte`) reciben `usuarioId` y filtran por él directamente en el SQL — nunca "traer todo y filtrar en JS".
+- Se corrigieron dos huecos reales de seguridad (IDOR) encontrados durante la conversión: `Venta.create()` no verificaba que el cliente y los productos comprados fueran del mismo tenant que hacía la venta.
+- Migración de la base de datos ya existente (con datos reales) hecha en secuencia segura: columna nullable → backfill al admin original → verificar cero nulos → bloquear `NOT NULL` → agregar claves foráneas e índices. Se hizo respaldo a JSON de las 5 tablas antes de migrar.
+- Probado con un segundo tenant real: aislamiento confirmado en lectura (dashboard/listados/reportes vacíos para el tenant nuevo) y en escritura (no se puede comprar un producto de otro tenant adivinando su id).
+
+### Registro público de cuentas
+
+- Nueva ruta `/registro` (`views/auth/register.ejs`, `authController.showRegister`/`register`). Cualquiera puede crear una cuenta; queda con su propio espacio aislado (ver arriba) y con `rol = 'admin'` de su propio negocio.
+
+### Recuperación de contraseña por correo
+
+- Nueva tabla `password_resets` (token de un solo uso, guardado **hasheado** con SHA-256, con vencimiento de 30 minutos configurable por `.env`).
+- Envío real de correo con **nodemailer** vía Gmail (`GMAIL_USER`, `GMAIL_APP_PASSWORD`, `EMAIL_FROM` en `.env`).
+- `POST /recuperar` siempre responde el mismo mensaje genérico exista o no el correo, para no revelar qué cuentas están registradas.
+- Rutas: `GET/POST /recuperar` y `GET/POST /recuperar/restablecer?token=...`.
+
+## 43.3 Correcciones de bugs encontrados durante las pruebas
+
+- **Estado de venta desactualizado tras un abono:** el `estado` de una venta a crédito (`PENDIENTE`/`PARCIAL`/`PAGADA`) no se recalculaba cuando llegaban abonos posteriores. Se agregó una reconciliación automática por FIFO (`Venta.reconciliarEstadosCliente`) que distribuye el total abonado del cliente entre sus ventas a crédito de la más antigua a la más reciente cada vez que se registra un abono.
+- **"Total pendiente" del reporte de ventas:** sumaba el total bruto de las ventas `PARCIAL` en vez del monto que realmente quedaba pendiente después de los abonos. Se corrigió reutilizando la misma distribución FIFO (`Venta.obtenerSaldosCliente`).
+- **Abono de una venta de contado inflaba el saldo:** el pago inicial de una venta pagada de contado se registraba como abono, generando un saldo a favor ficticio que cancelaba deuda de otras ventas a crédito del mismo cliente. Ahora solo las ventas `PARCIAL` generan abono automático.
+- **Barra lateral no quedaba fija al hacer scroll:** usaba `min-h-screen` en vez de `h-screen` + `sticky`, así que en páginas largas (Dashboard, tablas grandes) el pie de la barra (usuario/cerrar sesión) quedaba fuera de la pantalla.
+- **Caché de archivos estáticos ocultaba cambios:** una optimización de caché de 24 h en `/css` y `/js` hacía que el navegador ignorara actualizaciones del propio CSS/JS de la app. Se quitó el `maxAge` de esos archivos (siguen usando `ETag`/`Last-Modified` para no recargar innecesariamente); solo los archivos de Chart.js (que no cambian) mantienen caché larga.
+
+## 43.4 Preparación para producción / despliegue
+
+- **Sesiones persistentes:** se reemplazó el `MemoryStore` por defecto de `express-session` (no apto para producción, se pierde todo al reiniciar el proceso) por **`express-mysql-session`**, usando el mismo pool de MySQL de la app. Probado sobrevive a un reinicio completo del proceso.
+- **`trust proxy`:** detrás de un proxy inverso (Railway) que termina el HTTPS y reenvía la petición como HTTP interno, Express no reconocía la conexión como segura y `express-session` se negaba a enviar la cookie (`secure: true`). Se agregó `app.set('trust proxy', 1)`.
+- **Puerto de base de datos configurable:** `config/database.js` y `database/init.js` ahora aceptan `DB_PORT` (por defecto `3306`), necesario para conectarse a proxies públicos de hosts como Railway que no usan el puerto estándar.
+- **`database/database.sql` agnóstico al nombre de la base:** ya no trae `CREATE DATABASE`/`USE` con un nombre fijo; `database/init.js` crea la base indicada en `DB_NAME` (si no existe) y se conecta ya posicionado en ella antes de correr el resto del script. Esto permite usar el mismo script tanto en una base local llamada `sistema_ventas` como en una ya provista por el hosting (ej. `railway`).
+- **Build de Tailwind para producción:** se agregó el script `npm run build` (con `--minify`) y `tailwindcss` se movió de `devDependencies` a `dependencies`, porque algunos hosts (Railway/Nixpacks incluido) no instalan `devDependencies` cuando `NODE_ENV=production`.
+- **Cabeceras de seguridad HTTP:** `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`.
+- **Desplegado en Railway:** servicio de la app + servicio de MySQL, variables de entorno mapeadas por referencia (`${{MySQL.MYSQLHOST}}`, etc.), `NODE_ENV=production`, `SESSION_SECRET` propio de producción (distinto al de desarrollo).
+
+## 43.5 Del alcance original, lo que sigue sin implementarse
+
+- **Exportaciones** (CSV/PDF/Excel, sección 37) — decisión explícita de posponerlas.
+- **Roles y permisos diferenciados** entre `admin` y `empleado` — el campo `rol` existe en la base de datos pero no se usa todavía para restringir funciones; cada cuenta registrada es dueña completa de su propio negocio.
+- **"Configuración básica"** quedó limitada a cambiar la propia contraseña (se descartó explícitamente agregar datos del negocio/perfil).
+- **Anulación/reversión de ventas** (mencionada en la sección 12 como mecanismo futuro) no está implementada; una venta no se puede anular desde la interfaz todavía.

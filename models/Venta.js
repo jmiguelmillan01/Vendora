@@ -250,6 +250,43 @@ async function findAll({
   return { ventas: rows, total };
 }
 
+// Corregir una venta mal registrada nunca la modifica ni la borra (se
+// perdería el historial financiero): se anula y, si hace falta, se crea una
+// venta nueva con los datos correctos. Al anular, la venta deja de contar
+// para el crédito/saldo del cliente (ver obtenerVentasCreditoCliente, que ya
+// excluye estado != 'ANULADA'), así que se reconcilian sus demás ventas a
+// crédito para redistribuir entre ellas cualquier abono que ya se había
+// aplicado.
+async function anular(id, usuarioId) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[venta]] = await connection.query(
+      'SELECT id, cliente_id, estado FROM ventas WHERE id = ? AND usuario_id = ? LIMIT 1',
+      [id, usuarioId]
+    );
+
+    if (!venta) {
+      throw errorValidacion('La venta no existe.');
+    }
+    if (venta.estado === 'ANULADA') {
+      throw errorValidacion('Esta venta ya está anulada.');
+    }
+
+    await connection.query('UPDATE ventas SET estado = ? WHERE id = ?', ['ANULADA', id]);
+    await reconciliarEstadosCliente(connection, venta.cliente_id, usuarioId);
+
+    await connection.commit();
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
 async function findById(id, usuarioId) {
   const [rows] = await pool.query(
     `SELECT v.*, c.nombre AS cliente_nombre, c.telefono AS cliente_telefono
@@ -277,6 +314,7 @@ async function findDetalles(ventaId, usuarioId) {
 
 module.exports = {
   create,
+  anular,
   findAll,
   findById,
   findDetalles,

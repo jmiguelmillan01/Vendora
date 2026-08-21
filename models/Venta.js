@@ -163,7 +163,7 @@ async function reconciliarEstadosCliente(connection, clienteId, usuarioId) {
   if (ventasCredito.length === 0) return;
 
   const [[{ totalAbonado }]] = await connection.query(
-    'SELECT COALESCE(SUM(valor), 0) AS totalAbonado FROM abonos WHERE cliente_id = ? AND usuario_id = ?',
+    'SELECT COALESCE(SUM(valor), 0) AS totalAbonado FROM abonos WHERE cliente_id = ? AND usuario_id = ? AND anulado = 0',
     [clienteId, usuarioId]
   );
 
@@ -183,7 +183,7 @@ async function obtenerSaldosCliente(clienteId, usuarioId) {
   if (ventasCredito.length === 0) return [];
 
   const [[{ totalAbonado }]] = await pool.query(
-    'SELECT COALESCE(SUM(valor), 0) AS totalAbonado FROM abonos WHERE cliente_id = ? AND usuario_id = ?',
+    'SELECT COALESCE(SUM(valor), 0) AS totalAbonado FROM abonos WHERE cliente_id = ? AND usuario_id = ? AND anulado = 0',
     [clienteId, usuarioId]
   );
 

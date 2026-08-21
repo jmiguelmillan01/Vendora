@@ -87,7 +87,27 @@
     >
       Ver estado de cuenta del cliente
     </a>
+    <% if (venta.estado !== 'ANULADA') { %>
+      <form
+        method="POST"
+        action="/ventas/<%= venta.id %>/anular"
+        onsubmit="return confirm('¿Anular esta venta? Esta acción no se puede deshacer. El historial queda registrado, pero la venta dejará de contar para el saldo del cliente.');"
+      >
+        <button
+          type="submit"
+          class="w-full inline-flex items-center justify-center rounded-lg border border-red-300 px-4 py-3 sm:py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+        >
+          Anular venta
+        </button>
+      </form>
+    <% } %>
   </div>
+
+  <% if (venta.estado === 'ANULADA') { %>
+    <div class="rounded-lg bg-slate-100 border border-slate-200 text-slate-500 text-sm px-4 py-3">
+      Esta venta está anulada y no cuenta para el saldo del cliente. Si fue un error, registra una nueva venta con los datos correctos.
+    </div>
+  <% } %>
 </div>
 
 <%- include('../partials/footer') %>

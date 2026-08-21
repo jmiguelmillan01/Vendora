@@ -171,9 +171,24 @@ async function show(req, res, next) {
   }
 }
 
+async function anular(req, res, next) {
+  try {
+    await Venta.anular(req.params.id, req.session.usuario.id);
+    req.session.flash = { type: 'success', message: 'Venta anulada correctamente.' };
+    res.redirect(`/ventas/${req.params.id}`);
+  } catch (error) {
+    if (error.validacion) {
+      req.session.flash = { type: 'error', message: error.message };
+      return res.redirect(`/ventas/${req.params.id}`);
+    }
+    next(error);
+  }
+}
+
 module.exports = {
   index,
   showCreateForm,
   create,
-  show
+  show,
+  anular
 };

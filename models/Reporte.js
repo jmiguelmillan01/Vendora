@@ -69,7 +69,7 @@ async function reporteVentas({ usuarioId, fechaInicio, fechaFin, clienteId = '',
 }
 
 async function reporteAbonos({ usuarioId, fechaInicio, fechaFin, clienteId = '', metodoPago = '' }) {
-  const condiciones = ['usuario_id = ?', 'fecha >= ?', 'fecha <= ?'];
+  const condiciones = ['usuario_id = ?', 'anulado = 0', 'fecha >= ?', 'fecha <= ?'];
   const params = [usuarioId, fechaInicio, `${fechaFin} 23:59:59`];
 
   if (clienteId) {

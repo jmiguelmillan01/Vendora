@@ -20,6 +20,7 @@ const SALDO_JOIN = `
   LEFT JOIN (
     SELECT cliente_id, SUM(valor) AS total_abonado
     FROM abonos
+    WHERE anulado = 0
     GROUP BY cliente_id
   ) a ON a.cliente_id = c.id
 `;
@@ -131,9 +132,9 @@ async function getResumenFinanciero(clienteId, usuarioId) {
   const [[resumen]] = await pool.query(
     `SELECT
         COALESCE((SELECT SUM(total) FROM ventas WHERE cliente_id = ? AND usuario_id = ? AND tipo_pago IN ('CREDITO', 'PARCIAL') AND estado != 'ANULADA'), 0) AS total_credito,
-        COALESCE((SELECT SUM(valor) FROM abonos WHERE cliente_id = ? AND usuario_id = ?), 0) AS total_abonado,
+        COALESCE((SELECT SUM(valor) FROM abonos WHERE cliente_id = ? AND usuario_id = ? AND anulado = 0), 0) AS total_abonado,
         (SELECT MAX(fecha) FROM ventas WHERE cliente_id = ? AND usuario_id = ? AND estado != 'ANULADA') AS fecha_ultima_compra,
-        (SELECT MAX(fecha) FROM abonos WHERE cliente_id = ? AND usuario_id = ?) AS fecha_ultimo_abono`,
+        (SELECT MAX(fecha) FROM abonos WHERE cliente_id = ? AND usuario_id = ? AND anulado = 0) AS fecha_ultimo_abono`,
     [clienteId, usuarioId, clienteId, usuarioId, clienteId, usuarioId, clienteId, usuarioId]
   );
 
@@ -205,7 +206,7 @@ async function findAntiguedadDeuda(usuarioId, limit = 10) {
 
 async function getHistorial(clienteId, usuarioId, { fechaInicio = '', fechaFin = '' } = {}) {
   const condicionesVenta = ['cliente_id = ?', 'usuario_id = ?', "estado != 'ANULADA'"];
-  const condicionesAbono = ['cliente_id = ?', 'usuario_id = ?'];
+  const condicionesAbono = ['cliente_id = ?', 'usuario_id = ?', 'anulado = 0'];
   const paramsVenta = [clienteId, usuarioId];
   const paramsAbono = [clienteId, usuarioId];
 

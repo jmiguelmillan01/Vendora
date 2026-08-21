@@ -71,11 +71,13 @@
             <th class="px-4 py-3 font-medium">Método</th>
             <th class="px-4 py-3 font-medium hidden lg:table-cell">Observación</th>
             <th class="px-4 py-3 font-medium text-right">Valor</th>
+            <th class="px-4 py-3 font-medium">Estado</th>
+            <th class="px-4 py-3 font-medium text-right">Acciones</th>
           </tr>
         </thead>
         <tbody>
           <% abonos.forEach(function (abono) { %>
-            <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+            <tr class="border-b border-slate-100 last:border-0 hover:bg-slate-50 <%= abono.anulado ? 'opacity-60' : '' %>">
               <td class="px-4 py-3 text-slate-600"><%= formatFecha(abono.fecha) %></td>
               <td class="px-4 py-3">
                 <a href="/clientes/<%= abono.cliente_id %>" class="font-medium text-indigo-700 hover:underline">
@@ -84,7 +86,25 @@
               </td>
               <td class="px-4 py-3 text-slate-600"><%= etiquetasMetodoPago[abono.metodo_pago] || abono.metodo_pago %></td>
               <td class="px-4 py-3 text-slate-600 hidden lg:table-cell truncate max-w-xs"><%= abono.observacion || '—' %></td>
-              <td class="px-4 py-3 text-right font-medium text-green-700"><%= formatMoney(abono.valor) %></td>
+              <td class="px-4 py-3 text-right font-medium <%= abono.anulado ? 'text-slate-400 line-through' : 'text-green-700' %>"><%= formatMoney(abono.valor) %></td>
+              <td class="px-4 py-3">
+                <% if (abono.anulado) { %>
+                  <span class="inline-flex items-center rounded-full bg-slate-100 text-slate-400 text-xs font-medium px-2.5 py-1">Anulado</span>
+                <% } else { %>
+                  <span class="inline-flex items-center rounded-full bg-green-50 text-green-700 text-xs font-medium px-2.5 py-1">Activo</span>
+                <% } %>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <% if (!abono.anulado) { %>
+                  <form
+                    method="POST"
+                    action="/abonos/<%= abono.id %>/anular"
+                    onsubmit="return confirm('¿Anular este abono? El cliente dejará de tener este pago aplicado a su saldo.');"
+                  >
+                    <button type="submit" class="text-xs font-medium text-red-600 hover:text-red-700">Anular</button>
+                  </form>
+                <% } %>
+              </td>
             </tr>
           <% }); %>
         </tbody>
@@ -94,16 +114,34 @@
     <!-- Cards (móvil) -->
     <div class="md:hidden space-y-3">
       <% abonos.forEach(function (abono) { %>
-        <a href="/clientes/<%= abono.cliente_id %>" class="block bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-2">
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-4 space-y-2 <%= abono.anulado ? 'opacity-60' : '' %>">
           <div class="flex items-start justify-between gap-2">
-            <span class="font-semibold text-slate-900"><%= abono.cliente_nombre %></span>
-            <span class="shrink-0 font-medium text-green-700"><%= formatMoney(abono.valor) %></span>
+            <a href="/clientes/<%= abono.cliente_id %>" class="font-semibold text-indigo-700">
+              <%= abono.cliente_nombre %>
+            </a>
+            <span class="shrink-0 font-medium <%= abono.anulado ? 'text-slate-400 line-through' : 'text-green-700' %>"><%= formatMoney(abono.valor) %></span>
           </div>
           <p class="text-sm text-slate-500"><%= formatFecha(abono.fecha) %> · <%= etiquetasMetodoPago[abono.metodo_pago] || abono.metodo_pago %></p>
           <% if (abono.observacion) { %>
             <p class="text-sm text-slate-500"><%= abono.observacion %></p>
           <% } %>
-        </a>
+          <div class="flex items-center justify-between pt-2 border-t border-slate-100">
+            <% if (abono.anulado) { %>
+              <span class="inline-flex items-center rounded-full bg-slate-100 text-slate-400 text-xs font-medium px-2.5 py-1">Anulado</span>
+            <% } else { %>
+              <span class="inline-flex items-center rounded-full bg-green-50 text-green-700 text-xs font-medium px-2.5 py-1">Activo</span>
+            <% } %>
+            <% if (!abono.anulado) { %>
+              <form
+                method="POST"
+                action="/abonos/<%= abono.id %>/anular"
+                onsubmit="return confirm('¿Anular este abono? El cliente dejará de tener este pago aplicado a su saldo.');"
+              >
+                <button type="submit" class="text-xs font-medium text-red-600">Anular</button>
+              </form>
+            <% } %>
+          </div>
+        </div>
       <% }); %>
     </div>
   <% } %>

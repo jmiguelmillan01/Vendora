@@ -130,11 +130,13 @@ CREATE TABLE IF NOT EXISTS abonos (
   valor DECIMAL(12,2) NOT NULL,
   metodo_pago ENUM('EFECTIVO', 'TRANSFERENCIA', 'OTRO') NOT NULL DEFAULT 'EFECTIVO',
   observacion TEXT NULL,
+  anulado TINYINT(1) NOT NULL DEFAULT 0,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   KEY idx_abonos_cliente (cliente_id),
   KEY idx_abonos_fecha (fecha),
   KEY idx_abonos_usuario (usuario_id),
   KEY idx_abonos_usuario_fecha (usuario_id, fecha),
+  KEY idx_abonos_anulado (anulado),
   CONSTRAINT fk_abonos_cliente FOREIGN KEY (cliente_id)
     REFERENCES clientes(id) ON DELETE RESTRICT ON UPDATE CASCADE,
   CONSTRAINT fk_abonos_usuario FOREIGN KEY (usuario_id)

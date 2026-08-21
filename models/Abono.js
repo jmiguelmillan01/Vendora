@@ -1,6 +1,12 @@
 const pool = require('../config/database');
 const Venta = require('./Venta');
 
+function errorValidacion(mensaje) {
+  const error = new Error(mensaje);
+  error.validacion = true;
+  return error;
+}
+
 async function create({ usuarioId, clienteId, valor, metodoPago, observacion = null }) {
   const connection = await pool.getConnection();
 
@@ -19,6 +25,40 @@ async function create({ usuarioId, clienteId, valor, metodoPago, observacion = n
 
     await connection.commit();
     return resultado.insertId;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}
+
+// Igual que anular una venta: un abono mal registrado nunca se edita ni se
+// borra (se perdería el historial financiero), se anula. Al anular, ese
+// abono deja de contar para el saldo del cliente, así que se reconcilian sus
+// ventas a crédito para recalcular cuánto queda pendiente sin ese dinero.
+async function anular(id, usuarioId) {
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    const [[abono]] = await connection.query(
+      'SELECT id, cliente_id, anulado FROM abonos WHERE id = ? AND usuario_id = ? LIMIT 1',
+      [id, usuarioId]
+    );
+
+    if (!abono) {
+      throw errorValidacion('El abono no existe.');
+    }
+    if (abono.anulado) {
+      throw errorValidacion('Este abono ya está anulado.');
+    }
+
+    await connection.query('UPDATE abonos SET anulado = 1 WHERE id = ?', [id]);
+    await Venta.reconciliarEstadosCliente(connection, abono.cliente_id, usuarioId);
+
+    await connection.commit();
   } catch (error) {
     await connection.rollback();
     throw error;
@@ -83,5 +123,6 @@ async function findAll({
 
 module.exports = {
   create,
+  anular,
   findAll
 };

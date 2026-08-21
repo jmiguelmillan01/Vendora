@@ -123,8 +123,23 @@ async function create(req, res, next) {
   }
 }
 
+async function anular(req, res, next) {
+  try {
+    await Abono.anular(req.params.id, req.session.usuario.id);
+    req.session.flash = { type: 'success', message: 'Abono anulado correctamente.' };
+    res.redirect('/abonos');
+  } catch (error) {
+    if (error.validacion) {
+      req.session.flash = { type: 'error', message: error.message };
+      return res.redirect('/abonos');
+    }
+    next(error);
+  }
+}
+
 module.exports = {
   index,
   showCreateForm,
-  create
+  create,
+  anular
 };

@@ -63,37 +63,22 @@
           />
         </div>
 
-        <div>
-          <label for="password" class="block text-sm font-medium text-slate-700 mb-1">
-            Contraseña
-          </label>
-          <input
-            type="password"
-            id="password"
-            name="password"
-            required
-            minlength="6"
-            autocomplete="new-password"
-            class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="Mínimo 6 caracteres"
-          />
-        </div>
+        <%- include('../partials/password-field', {
+          id: 'password',
+          name: 'password',
+          label: 'Contraseña',
+          minlength: 6,
+          autocomplete: 'new-password',
+          placeholder: 'Mínimo 6 caracteres'
+        }) %>
 
-        <div>
-          <label for="password_confirmacion" class="block text-sm font-medium text-slate-700 mb-1">
-            Confirmar contraseña
-          </label>
-          <input
-            type="password"
-            id="password_confirmacion"
-            name="password_confirmacion"
-            required
-            minlength="6"
-            autocomplete="new-password"
-            class="w-full rounded-lg border border-slate-300 px-4 py-3 text-base text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-            placeholder="••••••••"
-          />
-        </div>
+        <%- include('../partials/password-field', {
+          id: 'password_confirmacion',
+          name: 'password_confirmacion',
+          label: 'Confirmar contraseña',
+          minlength: 6,
+          autocomplete: 'new-password'
+        }) %>
 
         <button
           type="submit"
@@ -109,5 +94,6 @@
       </p>
     </div>
   </main>
+  <script src="/js/password-toggle.js"></script>
 </body>
 </html>

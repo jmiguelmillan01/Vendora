@@ -4,6 +4,7 @@ const Cliente = require('../models/Cliente');
 const Producto = require('../models/Producto');
 const Reporte = require('../models/Reporte');
 const { resolveDateRange } = require('../utils/dateRanges');
+const { construirWorkbook, construirWorkbookCompleto, nombreArchivo } = require('../utils/reporteExcel');
 
 const TIPOS_VALIDOS = ['ventas', 'abonos', 'clientes', 'productos'];
 const ESTADOS_VALIDOS = ['PAGADA', 'PENDIENTE', 'PARCIAL', 'ANULADA'];
@@ -120,4 +121,29 @@ async function index(req, res, next) {
   }
 }
 
-module.exports = { index };
+async function exportar(req, res, next) {
+  try {
+    const usuarioId = req.session.usuario.id;
+    const esTodo = req.query.tipo === 'todo';
+    const tipo = esTodo ? 'todo' : TIPOS_VALIDOS.includes(req.query.tipo) ? req.query.tipo : 'ventas';
+    const rango = resolveDateRange(req.query);
+    const clienteId = req.query.cliente_id ? parseInt(req.query.cliente_id, 10) : '';
+    const productoId = req.query.producto_id ? parseInt(req.query.producto_id, 10) : '';
+    const estado = ESTADOS_VALIDOS.includes(req.query.estado) ? req.query.estado : '';
+    const metodoPago = METODOS_PAGO_VALIDOS.includes(req.query.metodo_pago) ? req.query.metodo_pago : '';
+    const filtros = { fechaInicio: rango.fechaInicio, fechaFin: rango.fechaFin, clienteId, productoId, estado, metodoPago };
+
+    const workbook = esTodo
+      ? await construirWorkbookCompleto({ usuarioId, filtros })
+      : await construirWorkbook({ tipo, usuarioId, filtros });
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${nombreArchivo(tipo)}"`);
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    next(error);
+  }
+}
+
+module.exports = { index, exportar };

@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const path = require('path');
+const cors = require('cors');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 
@@ -95,6 +96,12 @@ app.use('/ventas', requireAuth, ventaRoutes);
 app.use('/abonos', requireAuth, abonoRoutes);
 app.use('/reportes', requireAuth, reporteRoutes);
 app.use('/configuracion', requireAuth, configuracionRoutes);
+
+// API REST para la app móvil (React Native/Expo). Autenticación por JWT en vez
+// de la cookie de sesión que usa la web (ver middleware/apiAuthMiddleware.js);
+// cors() solo se habilita aquí porque Expo en desarrollo llama al servidor
+// desde otro origen, la web sigue siendo same-origin y no lo necesita.
+app.use('/api/v1', cors(), require('./routes/api'));
 
 app.use((req, res) => {
   res.status(404).render('404', { titulo: 'Página no encontrada' });
